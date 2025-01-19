@@ -1,0 +1,18 @@
+{
+  "rules": [
+    {
+      "rulePriority": 1,
+      "description": "*TEST* older than 1 days",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPatternList": ["*TEST*"],
+        "countType": "sinceImagePushed",
+        "countUnit": "days",
+        "countNumber": 1
+      },
+      "action": {
+        "type": "expire"
+      }
+    }
+  ]
+}
