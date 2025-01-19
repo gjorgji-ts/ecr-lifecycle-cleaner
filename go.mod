@@ -3,7 +3,7 @@ module ecr-lifecycle-cleaner
 go 1.23.3
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.32.5
+	github.com/aws/aws-sdk-go-v2 v1.33.0
 	github.com/aws/aws-sdk-go-v2/config v1.28.5
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.36.6
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.1
