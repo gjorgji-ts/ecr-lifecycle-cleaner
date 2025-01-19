@@ -30,7 +30,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
 
 ### Prerequisites
 
-- AWS CLI installed and configured with the necessary permissions.s
+- AWS CLI installed and configured with the necessary permissions.
 
 ### Steps
 
@@ -43,7 +43,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
     ecr-lifecycle-cleaner --help
     ```
 
-5. **Add Shell Completion:** To add completion for your shell, run the following command:
+5. **Add Shell Completion (Optional):** To add completion for your shell, run the following command:
 
     ```bash
     ecr-lifecycle-cleaner completion <shell> > /path/to/completion-file
