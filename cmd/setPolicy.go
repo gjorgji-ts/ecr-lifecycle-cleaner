@@ -7,9 +7,9 @@ import (
 	"log"
 	"strings"
 
-	initawsclient "ecr-lifecycle-cleaner/internal/initAwsClient"
-	readpolicyfile "ecr-lifecycle-cleaner/internal/readPolicyFile"
-	setlifecyclepolicy "ecr-lifecycle-cleaner/internal/setLifecyclePolicy"
+	"ecr-lifecycle-cleaner/internal/initAwsClient"
+	"ecr-lifecycle-cleaner/internal/readPolicyFile"
+	"ecr-lifecycle-cleaner/internal/setLifecyclePolicy"
 
 	"github.com/spf13/cobra"
 )
