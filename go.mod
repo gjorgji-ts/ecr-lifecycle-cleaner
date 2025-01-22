@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.1
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.38.6
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.9
-	github.com/aws/smithy-go v1.22.1
+	github.com/aws/smithy-go v1.22.2
 	github.com/spf13/cobra v1.8.1
 )
 
