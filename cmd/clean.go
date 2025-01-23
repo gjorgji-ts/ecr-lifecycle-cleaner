@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package cmd
 
@@ -9,6 +9,7 @@ import (
 	initawsclient "ecr-lifecycle-cleaner/internal/initAwsClient"
 	deleteuntaggedimages "ecr-lifecycle-cleaner/internal/deleteUntaggedImages"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +28,7 @@ and deletes those untagged images to help manage storage and maintain a clean re
 			repositoryList = strings.Split(repoList, ",")
 		}
 
-		client := initawsclient.InitAWSClient()
+		client := initawsclient.InitAWSClient(config.LoadDefaultConfig)
 		deleteuntaggedimages.Main(client, allRepos, repositoryList, repoPattern)
 	},
 }

@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package cmd
 
@@ -11,6 +11,7 @@ import (
 	readpolicyfile "ecr-lifecycle-cleaner/internal/readPolicyFile"
 	setlifecyclepolicy "ecr-lifecycle-cleaner/internal/setLifecyclePolicy"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,7 @@ Based on the provided policy, it sets lifecycle policies for specified repositor
 			log.Fatalf("[ERROR] Reading policy file: %v", err)
 		}
 
-		client := initawsclient.InitAWSClient()
+		client := initawsclient.InitAWSClient(config.LoadDefaultConfig)
 		setlifecyclepolicy.Main(client, policyText, allRepos, repositoryList, repoPattern)
 	},
 }

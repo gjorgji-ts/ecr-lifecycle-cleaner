@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package deleteuntaggedimages
 
@@ -120,17 +120,11 @@ func TestDeleteUntaggedImages(t *testing.T) {
 	client := ecr.NewFromConfig(cfg)
 
 	// Test with allRepos = true
-	if err := Main(client, true, nil, ""); err != nil {
-		t.Fatalf("Main() failed: %v", err)
-	}
+	Main(client, true, nil, "")
 
 	// Test with specific repository list
-	if err := Main(client, false, []string{"test-repo"}, ""); err != nil {
-		t.Fatalf("Main() failed: %v", err)
-	}
+	Main(client, false, []string{"test-repo"}, "")
 
 	// Test with repository pattern
-	if err := Main(client, false, nil, "test-.*"); err != nil {
-		t.Fatalf("Main() failed: %v", err)
-	}
+	Main(client, false, nil, "test-.*")
 }

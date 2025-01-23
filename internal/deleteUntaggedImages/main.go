@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package deleteuntaggedimages
 
@@ -18,7 +18,7 @@ import (
 
 // Main is the entry point for deleting untagged images from ECR repositories.
 // It fetches the list of repositories and deletes the untagged images from each.
-func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string) error {
+func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
 	log.Println("Starting ECR untagged image cleaner...")
@@ -30,30 +30,26 @@ func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPatter
 		repositoryList, err = getRepositories(ctx, client)
 		if err != nil {
 			log.Fatalf("Error fetching repositories: %v", err)
-			return err
 		}
 	} else if len(repoPattern) > 0 {
 		var err error
 		repositoryList, err = getRepositoriesByPatterns(ctx, client, repoPattern)
 		if err != nil {
 			log.Fatalf("Error fetching repositories by patterns: %v", err)
-			return err
 		}
 	}
 
 	if len(repositoryList) == 0 {
 		log.Println("[INFO] No repositories to clean.")
-		return nil
+		return
 	}
 
 	if err := cleanECR(ctx, client, repositoryList); err != nil {
 		log.Fatalf("Error cleaning ECR: %v", err)
-		return err
 	}
 	log.Println("============================================")
 	log.Println("ECR untagged image cleaner finished successfully.")
 	log.Println("============================================")
-	return nil
 }
 
 func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) {

@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package initawsclient
 
@@ -12,12 +12,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
+// ConfigLoader loads AWS configuration.
+type ConfigLoader func(ctx context.Context, optFns ...func(*config.LoadOptions) error) (aws.Config, error)
+
 // InitAWSClient initializes the AWS client and returns it so it can be used in other functions.
-func InitAWSClient() *ecr.Client {
+func InitAWSClient(loadConfig ConfigLoader) *ecr.Client {
 	log.Println("============================================")
 	log.Println("[INFO] Initializing AWS client...")
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := loadConfig(context.TODO())
 	if err != nil {
 		log.Fatalf("[ERROR] Unable to load SDK config: %v", err)
 	}
