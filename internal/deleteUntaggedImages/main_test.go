@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package deleteuntaggedimages
 
@@ -64,8 +64,7 @@ func TestDeleteUntaggedImages(t *testing.T) {
 					Result: &ecr.BatchGetImageOutput{
 						Images: []types.Image{
 							{
-								ImageId:       &types.ImageIdentifier{ImageDigest: aws.String("sha256:1234")},
-								ImageManifest: aws.String(`{"manifests": [{"digest": "sha256:5678"}]}`),
+								ImageManifest: aws.String(`{"manifests":[{"digest":"sha256:5678"}]}`),
 							},
 						},
 					},
@@ -120,5 +119,12 @@ func TestDeleteUntaggedImages(t *testing.T) {
 
 	client := ecr.NewFromConfig(cfg)
 
-	Main(client)
+	// Test with allRepos = true
+	Main(client, true, nil, "")
+
+	// Test with specific repository list
+	Main(client, false, []string{"test-repo"}, "")
+
+	// Test with repository pattern
+	Main(client, false, nil, "test-.*")
 }

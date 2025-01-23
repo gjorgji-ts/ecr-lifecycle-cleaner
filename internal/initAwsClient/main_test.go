@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package initawsclient
 
@@ -20,21 +20,29 @@ func TestInitAWSClient(t *testing.T) {
 	getCallerIdentityMiddleware := middleware.FinalizeMiddlewareFunc(
 		"GetCallerIdentityMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
-			return middleware.FinalizeOutput{
-				Result: &sts.GetCallerIdentityOutput{
-					Account: aws.String("123456789012"),
-				},
-			}, middleware.Metadata{}, nil
+			operationName := middleware.GetOperationName(ctx)
+			if operationName == "GetCallerIdentity" {
+				return middleware.FinalizeOutput{
+					Result: &sts.GetCallerIdentityOutput{
+						Account: aws.String("123456789012"),
+					},
+				}, middleware.Metadata{}, nil
+			}
+			return handler.HandleFinalize(ctx, input)
 		},
 	)
 
-	// Mock middleware for ECR client creation (no specific output needed)
+	// Mock middleware for ECR client creation
 	ecrMiddleware := middleware.FinalizeMiddlewareFunc(
 		"ECRMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
-			return middleware.FinalizeOutput{
-				Result: &ecr.DescribeRepositoriesOutput{},
-			}, middleware.Metadata{}, nil
+			operationName := middleware.GetOperationName(ctx)
+			if operationName == "DescribeRepositories" {
+				return middleware.FinalizeOutput{
+					Result: &ecr.DescribeRepositoriesOutput{},
+				}, middleware.Metadata{}, nil
+			}
+			return handler.HandleFinalize(ctx, input)
 		},
 	)
 
@@ -58,7 +66,9 @@ func TestInitAWSClient(t *testing.T) {
 	log.SetOutput(io.Discard)
 
 	// Use the mocked config to initialize the AWS client
-	client := ecr.NewFromConfig(cfg)
+	client := InitAWSClient(func(ctx context.Context, optFns ...func(*config.LoadOptions) error) (aws.Config, error) {
+		return cfg, nil
+	})
 
 	if client == nil {
 		t.Fatalf("Expected non-nil ECR client")

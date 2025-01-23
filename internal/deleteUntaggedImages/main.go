@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package deleteuntaggedimages
 
@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -17,12 +18,33 @@ import (
 
 // Main is the entry point for deleting untagged images from ECR repositories.
 // It fetches the list of repositories and deletes the untagged images from each.
-func Main(client *ecr.Client) {
+func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
 	log.Println("Starting ECR untagged image cleaner...")
 	log.Println("============================================")
-	if err := cleanECR(client); err != nil {
+
+	ctx := context.TODO()
+	if allRepos {
+		var err error
+		repositoryList, err = getRepositories(ctx, client)
+		if err != nil {
+			log.Fatalf("Error fetching repositories: %v", err)
+		}
+	} else if len(repoPattern) > 0 {
+		var err error
+		repositoryList, err = getRepositoriesByPatterns(ctx, client, repoPattern)
+		if err != nil {
+			log.Fatalf("Error fetching repositories by patterns: %v", err)
+		}
+	}
+
+	if len(repositoryList) == 0 {
+		log.Println("[INFO] No repositories to clean.")
+		return
+	}
+
+	if err := cleanECR(ctx, client, repositoryList); err != nil {
 		log.Fatalf("Error cleaning ECR: %v", err)
 	}
 	log.Println("============================================")
@@ -41,6 +63,25 @@ func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) 
 		}
 		for _, repo := range page.Repositories {
 			repositories = append(repositories, aws.ToString(repo.RepositoryName))
+		}
+	}
+	return repositories, nil
+}
+
+func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPattern string) ([]string, error) {
+	var repositories []string
+	allRepositories, err := getRepositories(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, repo := range allRepositories {
+		matched, err := regexp.MatchString(repoPattern, repo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to match pattern %s: %w", repoPattern, err)
+		}
+		if matched {
+			repositories = append(repositories, repo)
 		}
 	}
 	return repositories, nil
@@ -165,12 +206,7 @@ func deleteImages(ctx context.Context, repository string, images []string, clien
 	return nil
 }
 
-func cleanECR(client *ecr.Client) error {
-	ctx := context.TODO()
-	repositories, err := getRepositories(ctx, client)
-	if err != nil {
-		return fmt.Errorf("failed to get repositories: %w", err)
-	}
+func cleanECR(ctx context.Context, client *ecr.Client, repositories []string) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error

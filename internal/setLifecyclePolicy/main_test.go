@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package setlifecyclepolicy
 
@@ -16,7 +16,7 @@ import (
 	"github.com/aws/smithy-go/middleware"
 )
 
-func TestMain(t *testing.T) {
+func TestSetLifecyclePolicy(t *testing.T) {
 	// Mock middleware for DescribeRepositories
 	describeRepositoriesMiddleware := middleware.FinalizeMiddlewareFunc(
 		"DescribeRepositoriesMock",

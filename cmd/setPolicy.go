@@ -1,4 +1,4 @@
-// Copyright © 2024 Gjorgji J.
+// Copyright © 2025 Gjorgji J.
 
 package cmd
 
@@ -7,19 +7,16 @@ import (
 	"log"
 	"strings"
 
-	"ecr-lifecycle-cleaner/internal/initAwsClient"
-	"ecr-lifecycle-cleaner/internal/readPolicyFile"
-	"ecr-lifecycle-cleaner/internal/setLifecyclePolicy"
+	initawsclient "ecr-lifecycle-cleaner/internal/initAwsClient"
+	readpolicyfile "ecr-lifecycle-cleaner/internal/readPolicyFile"
+	setlifecyclepolicy "ecr-lifecycle-cleaner/internal/setLifecyclePolicy"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/spf13/cobra"
 )
 
 var (
-	policyFile     string
-	allRepos       bool
-	repoList       string
-	repoPattern    string
-	repositoryList []string
+	policyFile string
 )
 
 // setPolicyCmd represents the setPolicy command
@@ -41,7 +38,7 @@ Based on the provided policy, it sets lifecycle policies for specified repositor
 			log.Fatalf("[ERROR] Reading policy file: %v", err)
 		}
 
-		client := initawsclient.InitAWSClient()
+		client := initawsclient.InitAWSClient(config.LoadDefaultConfig)
 		setlifecyclepolicy.Main(client, policyText, allRepos, repositoryList, repoPattern)
 	},
 }
@@ -49,11 +46,6 @@ Based on the provided policy, it sets lifecycle policies for specified repositor
 func init() {
 	rootCmd.AddCommand(setPolicyCmd)
 
-	setPolicyCmd.Flags().StringVarP(&policyFile, "policy-file", "p", "", "Path to the JSON file containing the lifecycle policy")
-	setPolicyCmd.Flags().BoolVar(&allRepos, "allRepos", false, "Apply the policy to all repositories")
-	setPolicyCmd.Flags().StringVar(&repoList, "repoList", "", "Comma-separated list of repository names to apply the policy to (e.g., repo1,repo2)")
-	setPolicyCmd.Flags().StringVar(&repoPattern, "repoPattern", "", "Regex pattern to match repository names to (e.g., ^my-repo-.*$)")
+	setPolicyCmd.Flags().StringVarP(&policyFile, "policy-file", "f", "", "Path to the JSON file containing the lifecycle policy")
 	setPolicyCmd.MarkFlagRequired("policy-file")
-	setPolicyCmd.MarkFlagsOneRequired("allRepos", "repoList", "repoPattern")
-	setPolicyCmd.MarkFlagsMutuallyExclusive("allRepos", "repoList", "repoPattern")
 }
