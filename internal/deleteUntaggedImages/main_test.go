@@ -16,7 +16,7 @@ import (
 	"github.com/aws/smithy-go/middleware"
 )
 
-func TestDeleteUntaggedImages(t *testing.T) {
+func TestMain(t *testing.T) {
 	// Mock middleware for DescribeRepositories
 	describeRepositoriesMiddleware := middleware.FinalizeMiddlewareFunc(
 		"DescribeRepositoriesMock",
@@ -64,8 +64,7 @@ func TestDeleteUntaggedImages(t *testing.T) {
 					Result: &ecr.BatchGetImageOutput{
 						Images: []types.Image{
 							{
-								ImageId:       &types.ImageIdentifier{ImageDigest: aws.String("sha256:1234")},
-								ImageManifest: aws.String(`{"manifests": [{"digest": "sha256:5678"}]}`),
+								ImageManifest: aws.String(`{"manifests":[{"digest":"sha256:5678"}]}`),
 							},
 						},
 					},
@@ -120,5 +119,18 @@ func TestDeleteUntaggedImages(t *testing.T) {
 
 	client := ecr.NewFromConfig(cfg)
 
-	Main(client)
+	// Test with allRepos = true
+	if err := Main(client, true, nil, ""); err != nil {
+		t.Fatalf("Main() failed: %v", err)
+	}
+
+	// Test with specific repository list
+	if err := Main(client, false, []string{"test-repo"}, ""); err != nil {
+		t.Fatalf("Main() failed: %v", err)
+	}
+
+	// Test with repository pattern
+	if err := Main(client, false, nil, "test-.*"); err != nil {
+		t.Fatalf("Main() failed: %v", err)
+	}
 }

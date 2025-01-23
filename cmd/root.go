@@ -18,7 +18,13 @@ var (
 
 var client *ecr.Client
 
-// rootCmd represents the base command when called without any subcommands
+var (
+	allRepos       bool
+	repoList       string
+	repoPattern    string
+	repositoryList []string
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "ecr-lifecycle-cleaner",
 	Short: "A cli tool for managing ECR repositories.",
@@ -28,8 +34,6 @@ It can be used to apply lifecycle policies to ECR repositories,
 and clean up orphaned images from multi-platform builds.`,
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -38,10 +42,15 @@ func Execute() {
 }
 
 func init() {
-	// Add command groups to the root command
 	rootCmd.AddGroup(managementGroup)
 
-	// Assign commands to groups
 	cleanCmd.GroupID = managementGroup.ID
 	setPolicyCmd.GroupID = managementGroup.ID
+
+	rootCmd.PersistentFlags().BoolVarP(&allRepos, "allRepos", "a", false, "Apply the changes to all repositories")
+	rootCmd.PersistentFlags().StringVarP(&repoList, "repoList", "l", "", "Comma-separated list of repository names (e.g., repo1,repo2)")
+	rootCmd.PersistentFlags().StringVarP(&repoPattern, "repoPattern", "p", "", "Regex pattern to match repository names (e.g., '^my-repo-.*'). Make sure to quote the pattern to avoid shell interpretation.")
+
+	rootCmd.MarkFlagsOneRequired("allRepos", "repoList", "repoPattern")
+	rootCmd.MarkFlagsMutuallyExclusive("allRepos", "repoList", "repoPattern")
 }
