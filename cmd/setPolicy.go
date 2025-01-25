@@ -46,6 +46,6 @@ Based on the provided policy, it sets lifecycle policies for specified repositor
 func init() {
 	rootCmd.AddCommand(setPolicyCmd)
 
-	setPolicyCmd.Flags().StringVarP(&policyFile, "policy-file", "f", "", "Path to the JSON file containing the lifecycle policy")
-	setPolicyCmd.MarkFlagRequired("policy-file")
+	setPolicyCmd.Flags().StringVarP(&policyFile, "policyFile", "f", "", "Path to the JSON file containing the lifecycle policy")
+	setPolicyCmd.MarkFlagRequired("policyFile")
 }
