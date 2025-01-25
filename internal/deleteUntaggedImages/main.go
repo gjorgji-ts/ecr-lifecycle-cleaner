@@ -21,7 +21,7 @@ import (
 func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
-	log.Println("Starting ECR untagged image cleaner...")
+	log.Println("Starting ECR untagged images cleanup")
 	log.Println("============================================")
 
 	ctx := context.TODO()
@@ -48,7 +48,7 @@ func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPatter
 		log.Fatalf("Error cleaning ECR: %v", err)
 	}
 	log.Println("============================================")
-	log.Println("ECR untagged image cleaner finished successfully.")
+	log.Println("Finished ECR untagged images cleanup")
 	log.Println("============================================")
 }
 

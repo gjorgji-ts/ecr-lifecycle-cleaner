@@ -21,7 +21,7 @@ import (
 func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList []string, repoPattern string) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
-	log.Println("Starting ECR lifecycle policy manager...")
+	log.Println("Starting ECR lifecycle policy setup")
 	log.Println("============================================")
 	ctx := context.TODO()
 	if allRepos {
@@ -45,7 +45,7 @@ func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList [
 		log.Fatalf("[ERROR] Error setting policies: %v", err)
 	}
 	log.Println("============================================")
-	log.Println("ECR lifecycle policy manager finished successfully.")
+	log.Println("Finished ECR lifecycle policy setup")
 	log.Println("============================================")
 }
 
