@@ -61,7 +61,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
 - **Set Lifecycle Policy:**
 
     ```bash
-    ecr-lifecycle-cleaner setPolicy --policy-file policy.json --allRepos
+    ecr-lifecycle-cleaner setPolicy --policyFile policy.json --allRepos
     ```
 
 -----
