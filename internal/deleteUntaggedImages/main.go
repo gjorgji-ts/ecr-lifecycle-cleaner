@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"sort"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -150,14 +151,22 @@ func partitionList(lst []string, size int) [][]string {
 	return partitions
 }
 
-func getImagesToDelete(ctx context.Context, repository string, client *ecr.Client) ([]string, error) {
+func getImagesToDelete(ctx context.Context, repository string, client *ecr.Client, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
 	images, err := getImages(ctx, repository, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get images for repository %s: %w", repository, err)
 	}
-	log.Printf("[INFO] Repository: %s - Found %d tagged and %d untagged images", repository, len(images["tagged"]), len(images["orphan"]))
+	logMessage := fmt.Sprintf("[INFO] Repository: %s - Found %d tagged and %d untagged images", repository, len(images["tagged"]), len(images["orphan"]))
+	mu.Lock()
+	*logMessages = append(*logMessages, logMessage)
+	mu.Unlock()
+
 	for _, part := range partitionList(images["tagged"], 100) {
-		log.Printf("[INFO] Repository: %s - Finding children of the tagged images", repository)
+		logMessage = fmt.Sprintf("[INFO] Repository: %s - Finding children of the tagged images", repository)
+		mu.Lock()
+		*logMessages = append(*logMessages, logMessage)
+		mu.Unlock()
+
 		children, err := getChildImages(ctx, repository, part, client)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get child images for repository %s: %w", repository, err)
@@ -210,35 +219,57 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string) er
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error
+	var logMessages []string
 
 	for _, repository := range repositories {
 		wg.Add(1)
 		go func(repo string) {
 			defer wg.Done()
-			log.Printf("[INFO] Checking repository: %s", repo)
-			images, err := getImagesToDelete(ctx, repo, client)
+			logMessage := fmt.Sprintf("[INFO] Checking repository: %s", repo)
+			mu.Lock()
+			logMessages = append(logMessages, logMessage)
+			mu.Unlock()
+
+			images, err := getImagesToDelete(ctx, repo, client, &logMessages, &mu)
 			if err != nil {
-				log.Printf("[ERROR] Repository: %s - Failed to get images to delete: %v", repo, err)
+				logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to get images to delete: %v", repo, err)
 				mu.Lock()
+				logMessages = append(logMessages, logMessage)
 				errs = append(errs, err)
 				mu.Unlock()
 				return
 			}
 			if len(images) > 0 {
-				log.Printf("[INFO] Repository: %s - Deleting %d images", repo, len(images))
+				logMessage = fmt.Sprintf("[INFO] Repository: %s - Deleting %d images", repo, len(images))
+				mu.Lock()
+				logMessages = append(logMessages, logMessage)
+				mu.Unlock()
+
 				err := deleteImages(ctx, repo, images, client)
 				if err != nil {
-					log.Printf("[ERROR] Repository: %s - Failed to delete images: %v", repo, err)
+					logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to delete images: %v", repo, err)
 					mu.Lock()
+					logMessages = append(logMessages, logMessage)
 					errs = append(errs, err)
 					mu.Unlock()
 				}
 			} else {
-				log.Printf("[INFO] Repository: %s - Nothing to delete", repo)
+				logMessage = fmt.Sprintf("[INFO] Repository: %s - Nothing to delete", repo)
+				mu.Lock()
+				logMessages = append(logMessages, logMessage)
+				mu.Unlock()
 			}
 		}(repository)
 	}
 	wg.Wait()
+
+	sort.Slice(logMessages, func(i, j int) bool {
+		return logMessages[i] < logMessages[j]
+	})
+
+	for _, logMessage := range logMessages {
+		log.Println(logMessage)
+	}
 
 	if len(errs) > 0 {
 		return fmt.Errorf("encountered errors during cleanup: %v", errs)
