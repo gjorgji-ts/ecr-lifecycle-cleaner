@@ -4,16 +4,16 @@ package setlifecyclepolicy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"regexp"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
-	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 )
 
 // Main is the entry point for setting ECR lifecycle policies.
@@ -41,6 +41,9 @@ func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList [
 		log.Println("[INFO] No repositories to set policies for.")
 		return
 	}
+
+	sort.Strings(repositoryList)
+
 	if err := setPolicyForAll(ctx, client, policyText, repositoryList); err != nil {
 		log.Fatalf("[ERROR] Error setting policies: %v", err)
 	}
@@ -61,8 +64,11 @@ func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) 
 		}
 		for _, repo := range page.Repositories {
 			repositories = append(repositories, aws.ToString(repo.RepositoryName))
-			log.Printf("[INFO] Found repository: %s", aws.ToString(repo.RepositoryName))
 		}
+	}
+	sort.Strings(repositories)
+	for _, repo := range repositories {
+		log.Printf("[INFO] Found repository: %s", repo)
 	}
 	log.Println("[INFO] Successfully fetched list of repositories.")
 	return repositories, nil
@@ -83,62 +89,58 @@ func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPatt
 		}
 		if matched {
 			repositories = append(repositories, repo)
-			log.Printf("[INFO] Repository %s matches pattern %s", repo, repoPattern)
 		}
+	}
+	sort.Strings(repositories)
+	for _, repo := range repositories {
+		log.Printf("[INFO] Repository %s matches pattern %s", repo, repoPattern)
 	}
 	log.Println("[INFO] Successfully fetched list of repositories by patterns.")
 	return repositories, nil
 }
 
-func getPolicy(ctx context.Context, client *ecr.Client, repository string) error {
-	log.Printf("[INFO] Fetching lifecycle policy for repository: %s", repository)
-	input := &ecr.GetLifecyclePolicyInput{
-		RepositoryName: aws.String(repository),
-	}
-	resp, err := client.GetLifecyclePolicy(ctx, input)
-	if err != nil {
-		var notFound *types.LifecyclePolicyNotFoundException
-		if errors.As(err, &notFound) {
-			log.Printf("[INFO] No lifecycle policy found for repository: %s", repository)
-			return nil
-		}
-		return fmt.Errorf("failed to get lifecycle policy for %s: %w", repository, err)
-	}
-	log.Printf("[INFO] Lifecycle policy for repository %s: %s", repository, aws.ToString(resp.LifecyclePolicyText))
-	return nil
-}
-
-func setPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string) error {
-	log.Printf("[INFO] Setting lifecycle policy for repository: %s", repository)
+func setPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string) (string, error) {
+	logMsg := fmt.Sprintf("[INFO] Setting lifecycle policy for repository: %s", repository)
 	input := &ecr.PutLifecyclePolicyInput{
 		RepositoryName:      aws.String(repository),
 		LifecyclePolicyText: aws.String(policyText),
 	}
 	resp, err := client.PutLifecyclePolicy(ctx, input)
 	if err != nil {
-		return fmt.Errorf("failed to set lifecycle policy for %s: %w", repository, err)
+		return logMsg, fmt.Errorf("failed to set lifecycle policy for %s: %w", repository, err)
 	}
-	log.Printf("[INFO] Successfully set lifecycle policy for repository %s: %s", repository, aws.ToString(resp.LifecyclePolicyText))
-	return nil
+	logMsg += fmt.Sprintf("\n[INFO] Successfully set lifecycle policy for repository %s:\n %s", repository, aws.ToString(resp.LifecyclePolicyText))
+	return logMsg, nil
 }
 
 func setPolicyForAll(ctx context.Context, client *ecr.Client, policyText string, repoList []string) error {
 	log.Println("[INFO] Starting to set lifecycle policies for specified repositories...")
 
 	var wg sync.WaitGroup
+	logMap := sync.Map{}
+
 	for _, repository := range repoList {
 		wg.Add(1)
 		go func(repo string) {
 			defer wg.Done()
-			if err := setPolicy(ctx, client, repo, policyText); err != nil {
-				log.Printf("[ERROR] Error setting policy for repository %s: %v", repo, err)
+			logs := []string{}
+			if logMsg, err := setPolicy(ctx, client, repo, policyText); err != nil {
+				logs = append(logs, fmt.Sprintf("[ERROR] Error setting policy for repository %s: %v", repo, err))
+			} else {
+				logs = append(logs, logMsg)
 			}
-			if err := getPolicy(ctx, client, repo); err != nil {
-				log.Printf("[ERROR] Error getting policy for repository %s: %v", repo, err)
-			}
+			logMap.Store(repo, strings.Join(logs, "\n"))
 		}(repository)
 	}
+
 	wg.Wait()
+
+	for _, repo := range repoList {
+		if logMsg, ok := logMap.Load(repo); ok {
+			log.Println(logMsg)
+		}
+	}
+
 	log.Println("[INFO] Finished setting lifecycle policies for specified repositories.")
 	return nil
 }
