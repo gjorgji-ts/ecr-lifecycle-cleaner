@@ -26,7 +26,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
 
 > [!NOTE]
 > Currently, the tool is only tested on Linux and MacOS platforms.
-> The Windows platform is supported, but not tested yet.
+> The Windows platform is supported, but not tested.
 
 ### Prerequisites
 
@@ -62,6 +62,14 @@ This tool helps you identify and clean up those orphaned images using the `clean
 
     ```bash
     ecr-lifecycle-cleaner setPolicy --policyFile policy.json --allRepos
+    ```
+
+- **Dry Run:**
+
+    ```bash
+    ecr-lifecycle-cleaner clean --allRepos --dryRun
+    # or
+    ecr-lifecycle-cleaner setPolicy --policyFile policy.json --allRepos --dryRun
     ```
 
 -----

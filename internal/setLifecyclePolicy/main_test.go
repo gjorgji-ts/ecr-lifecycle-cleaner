@@ -92,11 +92,22 @@ func TestSetLifecyclePolicy(t *testing.T) {
 	client := ecr.NewFromConfig(cfg)
 
 	// Test with allRepos = true
-	Main(client, "mock-policy-text", true, nil, "")
+	t.Run("Test with allRepos = true", func(t *testing.T) {
+		Main(client, "mock-policy-text", true, nil, "", false)
+	})
 
 	// Test with specific repository list
-	Main(client, "mock-policy-text", false, []string{"test-repo"}, "")
+	t.Run("Test with specific repository list", func(t *testing.T) {
+		Main(client, "mock-policy-text", false, []string{"test-repo"}, "", false)
+	})
 
 	// Test with repository pattern
-	Main(client, "mock-policy-text", false, nil, "test-.*")
+	t.Run("Test with repository pattern", func(t *testing.T) {
+		Main(client, "mock-policy-text", false, nil, "test-.*", false)
+	})
+
+	// Test with dryRun = true
+	t.Run("Test with dryRun = true", func(t *testing.T) {
+		Main(client, "mock-policy-text", true, nil, "", true)
+	})
 }

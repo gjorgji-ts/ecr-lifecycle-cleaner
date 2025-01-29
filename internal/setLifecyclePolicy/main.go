@@ -9,7 +9,6 @@ import (
 	"os"
 	"regexp"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -18,7 +17,7 @@ import (
 
 // Main is the entry point for setting ECR lifecycle policies.
 // It fetches the list of repositories based on the provided parameters and sets the lifecycle policy for each.
-func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList []string, repoPattern string) {
+func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList []string, repoPattern string, dryRun bool) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
 	log.Println("Starting ECR lifecycle policy setup")
@@ -42,9 +41,7 @@ func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList [
 		return
 	}
 
-	sort.Strings(repositoryList)
-
-	if err := setPolicyForAll(ctx, client, policyText, repositoryList); err != nil {
+	if err := setPolicyForAll(ctx, client, policyText, repositoryList, dryRun); err != nil {
 		log.Fatalf("[ERROR] Error setting policies: %v", err)
 	}
 	log.Println("============================================")
@@ -53,7 +50,6 @@ func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList [
 }
 
 func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) {
-	log.Println("[INFO] Fetching list of repositories...")
 	var repositories []string
 	paginator := ecr.NewDescribeRepositoriesPaginator(client, &ecr.DescribeRepositoriesInput{})
 
@@ -66,11 +62,6 @@ func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) 
 			repositories = append(repositories, aws.ToString(repo.RepositoryName))
 		}
 	}
-	sort.Strings(repositories)
-	for _, repo := range repositories {
-		log.Printf("[INFO] Found repository: %s", repo)
-	}
-	log.Println("[INFO] Successfully fetched list of repositories.")
 	return repositories, nil
 }
 
@@ -81,7 +72,6 @@ func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPatt
 		return nil, err
 	}
 
-	log.Println("[INFO] Fetching list of repositories by patterns...")
 	for _, repo := range allRepositories {
 		matched, err := regexp.MatchString(repoPattern, repo)
 		if err != nil {
@@ -91,16 +81,15 @@ func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPatt
 			repositories = append(repositories, repo)
 		}
 	}
-	sort.Strings(repositories)
-	for _, repo := range repositories {
-		log.Printf("[INFO] Repository %s matches pattern %s", repo, repoPattern)
-	}
-	log.Println("[INFO] Successfully fetched list of repositories by patterns.")
 	return repositories, nil
 }
 
-func setPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string) (string, error) {
+func setPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string, dryRun bool) (string, error) {
 	logMsg := fmt.Sprintf("[INFO] Setting lifecycle policy for repository: %s", repository)
+	if dryRun {
+		logMsg += "\n[INFO] Dry run enabled, no changes will be made."
+		return logMsg, nil
+	}
 	input := &ecr.PutLifecyclePolicyInput{
 		RepositoryName:      aws.String(repository),
 		LifecyclePolicyText: aws.String(policyText),
@@ -113,34 +102,46 @@ func setPolicy(ctx context.Context, client *ecr.Client, repository string, polic
 	return logMsg, nil
 }
 
-func setPolicyForAll(ctx context.Context, client *ecr.Client, policyText string, repoList []string) error {
-	log.Println("[INFO] Starting to set lifecycle policies for specified repositories...")
-
+func setPolicyForAll(ctx context.Context, client *ecr.Client, policyText string, repoList []string, dryRun bool) error {
 	var wg sync.WaitGroup
-	logMap := sync.Map{}
+	var mu sync.Mutex
+	var errs []error
+	var logMessages []string
 
 	for _, repository := range repoList {
 		wg.Add(1)
 		go func(repo string) {
 			defer wg.Done()
-			logs := []string{}
-			if logMsg, err := setPolicy(ctx, client, repo, policyText); err != nil {
-				logs = append(logs, fmt.Sprintf("[ERROR] Error setting policy for repository %s: %v", repo, err))
+			logMessage := fmt.Sprintf("[INFO] Setting policy for repository: %s", repo)
+			mu.Lock()
+			logMessages = append(logMessages, logMessage)
+			mu.Unlock()
+
+			if logMsg, err := setPolicy(ctx, client, repo, policyText, dryRun); err != nil {
+				logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to set policy: %v", repo, err)
+				mu.Lock()
+				logMessages = append(logMessages, logMessage)
+				errs = append(errs, err)
+				mu.Unlock()
 			} else {
-				logs = append(logs, logMsg)
+				mu.Lock()
+				logMessages = append(logMessages, logMsg)
+				mu.Unlock()
 			}
-			logMap.Store(repo, strings.Join(logs, "\n"))
 		}(repository)
 	}
-
 	wg.Wait()
 
-	for _, repo := range repoList {
-		if logMsg, ok := logMap.Load(repo); ok {
-			log.Println(logMsg)
-		}
+	sort.Slice(logMessages, func(i, j int) bool {
+		return logMessages[i] < logMessages[j]
+	})
+
+	for _, logMessage := range logMessages {
+		log.Println(logMessage)
 	}
 
-	log.Println("[INFO] Finished setting lifecycle policies for specified repositories.")
+	if len(errs) > 0 {
+		return fmt.Errorf("encountered errors during policy setup: %v", errs)
+	}
 	return nil
 }

@@ -39,13 +39,13 @@ Based on the provided policy, it sets lifecycle policies for specified repositor
 		}
 
 		client := initawsclient.InitAWSClient(config.LoadDefaultConfig)
-		setlifecyclepolicy.Main(client, policyText, allRepos, repositoryList, repoPattern)
+		setlifecyclepolicy.Main(client, policyText, allRepos, repositoryList, repoPattern, dryRun)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(setPolicyCmd)
 
-	setPolicyCmd.Flags().StringVarP(&policyFile, "policyFile", "f", "", "Path to the JSON file containing the lifecycle policy")
-	setPolicyCmd.MarkFlagRequired("policyFile")
+	setPolicyCmd.Flags().StringVarP(&policyFile, "policyFile", "f", "", "path to the JSON file containing the lifecycle policy")
+	setPolicyCmd.MarkFlagRequired("policyFile") // nolint:errcheck
 }

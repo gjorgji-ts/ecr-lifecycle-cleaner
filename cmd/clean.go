@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	initawsclient "ecr-lifecycle-cleaner/internal/initAwsClient"
 	deleteuntaggedimages "ecr-lifecycle-cleaner/internal/deleteUntaggedImages"
+	initawsclient "ecr-lifecycle-cleaner/internal/initAwsClient"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/spf13/cobra"
@@ -29,7 +29,7 @@ and deletes those untagged images to help manage storage and maintain a clean re
 		}
 
 		client := initawsclient.InitAWSClient(config.LoadDefaultConfig)
-		deleteuntaggedimages.Main(client, allRepos, repositoryList, repoPattern)
+		deleteuntaggedimages.Main(client, allRepos, repositoryList, repoPattern, dryRun)
 	},
 }
 

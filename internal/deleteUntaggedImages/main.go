@@ -19,7 +19,7 @@ import (
 
 // Main is the entry point for deleting untagged images from ECR repositories.
 // It fetches the list of repositories and deletes the untagged images from each.
-func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string) {
+func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string, dryRun bool) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
 	log.Println("Starting ECR untagged images cleanup")
@@ -45,7 +45,7 @@ func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPatter
 		return
 	}
 
-	if err := cleanECR(ctx, client, repositoryList); err != nil {
+	if err := cleanECR(ctx, client, repositoryList, dryRun); err != nil {
 		log.Fatalf("Error cleaning ECR: %v", err)
 	}
 	log.Println("============================================")
@@ -189,7 +189,7 @@ func getImagesToDelete(ctx context.Context, repository string, client *ecr.Clien
 	return images["orphan"], nil
 }
 
-func deleteImages(ctx context.Context, repository string, images []string, client *ecr.Client) error {
+func deleteImages(ctx context.Context, repository string, images []string, client *ecr.Client, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
 	deleted := 0
 	failed := 0
 	for _, part := range partitionList(images, 100) {
@@ -201,21 +201,39 @@ func deleteImages(ctx context.Context, repository string, images []string, clien
 			RepositoryName: aws.String(repository),
 			ImageIds:       imageIds,
 		}
-		result, err := client.BatchDeleteImage(ctx, input)
-		if err != nil {
-			return fmt.Errorf("failed to batch delete images for repository %s: %w", repository, err)
+		if dryRun {
+			logMessage := fmt.Sprintf("[INFO] Repository: %s - Dry run, would have deleted %d images", repository, len(part))
+			mu.Lock()
+			*logMessages = append(*logMessages, logMessage)
+			mu.Unlock()
+			continue
+		} else {
+			logMessage := fmt.Sprintf("[INFO] Repository: %s - Deleting %d images", repository, len(part))
+			mu.Lock()
+			*logMessages = append(*logMessages, logMessage)
+			mu.Unlock()
+			result, err := client.BatchDeleteImage(ctx, input)
+			if err != nil {
+				return fmt.Errorf("failed to batch delete images for repository %s: %w", repository, err)
+			}
+			for _, failure := range result.Failures {
+				logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to delete %s: %s - %s", repository, aws.ToString(failure.ImageId.ImageDigest), string(failure.FailureCode), aws.ToString(failure.FailureReason))
+				mu.Lock()
+				*logMessages = append(*logMessages, logMessage)
+				mu.Unlock()
+			}
+			deleted += len(result.ImageIds)
+			failed += len(result.Failures)
 		}
-		for _, failure := range result.Failures {
-			log.Printf("[ERROR] Repository: %s - Failed to delete %s: %s - %s", repository, aws.ToString(failure.ImageId.ImageDigest), string(failure.FailureCode), aws.ToString(failure.FailureReason))
-		}
-		deleted += len(result.ImageIds)
-		failed += len(result.Failures)
 	}
-	log.Printf("[INFO] Repository: %s - Deleted %d images, failed to delete %d images", repository, deleted, failed)
+	logMessage := fmt.Sprintf("[INFO] Repository: %s - Deleted %d images, failed to delete %d images", repository, deleted, failed)
+	mu.Lock()
+	*logMessages = append(*logMessages, logMessage)
+	mu.Unlock()
 	return nil
 }
 
-func cleanECR(ctx context.Context, client *ecr.Client, repositories []string) error {
+func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dryRun bool) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error
@@ -240,12 +258,11 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string) er
 				return
 			}
 			if len(images) > 0 {
-				logMessage = fmt.Sprintf("[INFO] Repository: %s - Deleting %d images", repo, len(images))
 				mu.Lock()
 				logMessages = append(logMessages, logMessage)
 				mu.Unlock()
 
-				err := deleteImages(ctx, repo, images, client)
+				err := deleteImages(ctx, repo, images, client, dryRun, &logMessages, &mu)
 				if err != nil {
 					logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to delete images: %v", repo, err)
 					mu.Lock()
