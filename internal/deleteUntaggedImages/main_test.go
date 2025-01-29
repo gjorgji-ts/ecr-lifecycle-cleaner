@@ -119,12 +119,12 @@ func TestDeleteUntaggedImages(t *testing.T) {
 
 	client := ecr.NewFromConfig(cfg)
 
-	// Test with allRepos = true
-	Main(client, true, nil, "")
+	// Test with allRepos = true and dryRun = true
+	Main(client, true, nil, "", true)
 
-	// Test with specific repository list
-	Main(client, false, []string{"test-repo"}, "")
+	// Test with specific repository list and dryRun = true
+	Main(client, false, []string{"test-repo"}, "", true)
 
-	// Test with repository pattern
-	Main(client, false, nil, "test-.*")
+	// Test with repository pattern and dryRun = true
+	Main(client, false, nil, "test-.*", true)
 }

@@ -12,6 +12,7 @@ import (
 
 // ReadPolicyFile reads the content of a policy file and returns it as a string.
 func ReadPolicyFile(filePath string) (string, error) {
+	log.Println("============================================")
 	log.Printf("[INFO] Opening policy file: %s", filePath)
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -35,5 +36,6 @@ func ReadPolicyFile(filePath string) (string, error) {
 	}
 
 	log.Printf("[INFO] Successfully read and validated policy file: %s", filePath)
+	log.Println("============================================")
 	return string(bytes), nil
 }
