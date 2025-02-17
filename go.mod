@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.41.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.14
 	github.com/aws/smithy-go v1.22.2
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.9.1
 )
 
 require (
@@ -22,5 +22,5 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.14 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
 )
