@@ -39,7 +39,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
   - "ecr:GetLifecyclePolicy" -- Allows the tool to get the existing lifecycle policy, which is required for the `setPolicy` command.
   - "ecr:PutLifecyclePolicy" -- Allows the tool to set the lifecycle policy, which is required for the `setPolicy` command.
 
-### Steps
+### Local Installation
 
 1. **Download:** Download the latest release for your platform from the [Releases](https://github.com/gjorgji-ts/ecr-lifecycle-cleaner/releases) page.
 2. **Verify Checksum (Optional):** Verify the checksum of the downloaded archive. The checksums are available in the `ecr-lifecycle-cleaner_checksums.txt` file.
@@ -57,7 +57,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
     # e.g. ecr-lifecycle-cleaner completion fish > ~/.config/fish/completions/ecr-lifecycle-cleaner.fish
     ```
 
-### Examples
+#### Examples
 
 - **Clean Orphaned Images:**
 
@@ -78,6 +78,9 @@ This tool helps you identify and clean up those orphaned images using the `clean
     # or
     ecr-lifecycle-cleaner setPolicy --policyFile policy.json --allRepos --dryRun
     ```
+
+### GitHub Action
+You can seamlessly integrate this tool into a scheduled GitHub Actions workflow. The official GitHub Action is available at [gjorgji-ts/ecr-lifecycle-cleaner-gh-action](https://github.com/gjorgji-ts/ecr-lifecycle-cleaner-gh-action).
 
 -----
 
