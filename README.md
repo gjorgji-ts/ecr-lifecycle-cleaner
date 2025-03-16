@@ -79,7 +79,7 @@ This tool helps you identify and clean up those orphaned images using the `clean
     ecr-lifecycle-cleaner setPolicy --policyFile policy.json --allRepos --dryRun
     ```
 
-# GitHub Action
+### GitHub Action
 You can seamlessly integrate this tool into a scheduled GitHub Actions workflow. The official GitHub Action is available at [gjorgji-ts/ecr-lifecycle-cleaner-gh-action](https://github.com/gjorgji-ts/ecr-lifecycle-cleaner-gh-action)
 
 -----
