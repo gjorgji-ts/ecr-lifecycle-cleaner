@@ -28,10 +28,10 @@ jobs:
           cache: false
 
       - name: Lint with golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         continue-on-error: false
         with:
-          version: v1.60
+          version: latest
           working-directory: ${{ inputs.workdir }}
           skip-cache: true
           skip-save-cache: true
