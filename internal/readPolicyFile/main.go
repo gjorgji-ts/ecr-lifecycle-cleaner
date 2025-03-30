@@ -19,7 +19,11 @@ func ReadPolicyFile(filePath string) (string, error) {
 		log.Printf("[ERROR] Failed to open policy file: %s, error: %v", filePath, err)
 		return "", fmt.Errorf("failed to open policy file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+	    if closeErr := file.Close(); closeErr != nil {
+	        log.Printf("[WARN] Failed to close policy file: %v", closeErr)
+	    }
+	}()
 
 	log.Printf("[INFO] Reading policy file: %s", filePath)
 	bytes, err := io.ReadAll(file)
