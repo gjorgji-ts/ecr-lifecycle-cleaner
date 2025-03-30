@@ -15,13 +15,19 @@ func TestReadPolicyFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %v", err)
 		}
-		defer os.Remove(tmpFile.Name())
+		defer func() {
+			if err := os.Remove(tmpFile.Name()); err != nil {
+				t.Logf("Failed to remove temporary file: %v", err)
+			}
+		}()
 
 		policyContent := `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}`
 		if _, err := tmpFile.Write([]byte(policyContent)); err != nil {
 			t.Fatalf("Failed to write to temporary file: %v", err)
 		}
-		tmpFile.Close()
+		if err := tmpFile.Close(); err != nil {
+			t.Fatalf("Failed to close temporary file: %v", err)
+		}
 
 		// Call the function and check the result
 		result, err := ReadPolicyFile(tmpFile.Name())
@@ -52,13 +58,19 @@ func TestReadPolicyFile(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %v", err)
 		}
-		defer os.Remove(tmpFile.Name())
+		defer func() {
+			if err := os.Remove(tmpFile.Name()); err != nil {
+				t.Logf("Failed to remove temporary file: %v", err)
+			}
+		}()
 
 		invalidJSONContent := `{"Version": "2012-10-17", "Statement": [`
 		if _, err := tmpFile.Write([]byte(invalidJSONContent)); err != nil {
 			t.Fatalf("Failed to write to temporary file: %v", err)
 		}
-		tmpFile.Close()
+		if err := tmpFile.Close(); err != nil {
+			t.Fatalf("Failed to close temporary file: %v", err)
+		}
 
 		// Call the function and check the result
 		_, err = ReadPolicyFile(tmpFile.Name())
