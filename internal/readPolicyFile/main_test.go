@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package readpolicyfile
 
@@ -8,9 +8,9 @@ import (
 )
 
 func TestReadPolicyFile(t *testing.T) {
-	// Test case: Valid policy file
+	// --- valid policy file test ---
 	t.Run("Valid policy file", func(t *testing.T) {
-		// Create a temporary file with valid JSON content
+		// --- create a temporary file with valid JSON content ---
 		tmpFile, err := os.CreateTemp("", "policy-*.json")
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %v", err)
@@ -29,7 +29,7 @@ func TestReadPolicyFile(t *testing.T) {
 			t.Fatalf("Failed to close temporary file: %v", err)
 		}
 
-		// Call the function and check the result
+		// --- call the function and check the result ---
 		result, err := ReadPolicyFile(tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
@@ -39,7 +39,7 @@ func TestReadPolicyFile(t *testing.T) {
 		}
 	})
 
-	// Test case: Non-existent file
+	// --- non-existent file test ---
 	t.Run("Non-existent file", func(t *testing.T) {
 		_, err := ReadPolicyFile("non-existent-file.json")
 		if err == nil {
@@ -51,9 +51,9 @@ func TestReadPolicyFile(t *testing.T) {
 		}
 	})
 
-	// Test case: Invalid JSON
+	// --- invalid JSON test ---
 	t.Run("Invalid JSON", func(t *testing.T) {
-		// Create a temporary file with invalid JSON content
+		// --- create a temporary file with invalid JSON content ---
 		tmpFile, err := os.CreateTemp("", "policy-*.json")
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %v", err)
@@ -72,7 +72,7 @@ func TestReadPolicyFile(t *testing.T) {
 			t.Fatalf("Failed to close temporary file: %v", err)
 		}
 
-		// Call the function and check the result
+		// --- call the function and check the result ---
 		_, err = ReadPolicyFile(tmpFile.Name())
 		if err == nil {
 			t.Fatalf("Expected error, got nil")
@@ -80,6 +80,52 @@ func TestReadPolicyFile(t *testing.T) {
 		expectedError := "invalid JSON in policy file"
 		if err.Error()[:len(expectedError)] != expectedError {
 			t.Fatalf("Expected error to start with %s, got %v", expectedError, err)
+		}
+	})
+}
+
+func TestReadPolicyFilePure(t *testing.T) {
+	t.Run("Valid policy file", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "policy-*.json")
+		if err != nil {
+			t.Fatalf("Failed to create temporary file: %v", err)
+		}
+		defer os.Remove(tmpFile.Name())
+		policyContent := `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}`
+		if _, err := tmpFile.Write([]byte(policyContent)); err != nil {
+			t.Fatalf("Failed to write to temporary file: %v", err)
+		}
+		tmpFile.Close()
+		result, err := ReadPolicyFilePure(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if result != policyContent {
+			t.Fatalf("Expected %s, got %s", policyContent, result)
+		}
+	})
+
+	t.Run("Non-existent file", func(t *testing.T) {
+		_, err := ReadPolicyFilePure("non-existent-file.json")
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
+		}
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "policy-*.json")
+		if err != nil {
+			t.Fatalf("Failed to create temporary file: %v", err)
+		}
+		defer os.Remove(tmpFile.Name())
+		invalidJSONContent := `{"Version": "2012-10-17", "Statement": [`
+		if _, err := tmpFile.Write([]byte(invalidJSONContent)); err != nil {
+			t.Fatalf("Failed to write to temporary file: %v", err)
+		}
+		tmpFile.Close()
+		_, err = ReadPolicyFilePure(tmpFile.Name())
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
 		}
 	})
 }

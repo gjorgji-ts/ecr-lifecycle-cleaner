@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package deleteuntaggedimages
 
@@ -17,7 +17,6 @@ import (
 )
 
 func TestDeleteUntaggedImages(t *testing.T) {
-	// Mock middleware for DescribeRepositories
 	describeRepositoriesMiddleware := middleware.FinalizeMiddlewareFunc(
 		"DescribeRepositoriesMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -35,7 +34,6 @@ func TestDeleteUntaggedImages(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for ListImages
 	listImagesMiddleware := middleware.FinalizeMiddlewareFunc(
 		"ListImagesMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -54,7 +52,6 @@ func TestDeleteUntaggedImages(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for BatchGetImage
 	batchGetImageMiddleware := middleware.FinalizeMiddlewareFunc(
 		"BatchGetImageMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -74,7 +71,6 @@ func TestDeleteUntaggedImages(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for BatchDeleteImage
 	batchDeleteImageMiddleware := middleware.FinalizeMiddlewareFunc(
 		"BatchDeleteImageMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -114,17 +110,29 @@ func TestDeleteUntaggedImages(t *testing.T) {
 		t.Fatalf("Unable to load SDK config: %v", err)
 	}
 
-	// Override the log output to avoid cluttering the test output
+	// --- override the log output to avoid cluttering the test output ---
 	log.SetOutput(io.Discard)
 
 	client := ecr.NewFromConfig(cfg)
 
-	// Test with allRepos = true and dryRun = true
+	// --- test with allRepos = true and dryRun = true ---
 	Main(client, true, nil, "", true)
 
-	// Test with specific repository list and dryRun = true
+	// --- test with specific repository list and dryRun = true ---
 	Main(client, false, []string{"test-repo"}, "", true)
 
-	// Test with repository pattern and dryRun = true
+	// --- test with repository pattern and dryRun = true ---
 	Main(client, false, nil, "test-.*", true)
+}
+
+func TestDeleteImages_DryRun(t *testing.T) {
+	client := &ecr.Client{} // --- not making real calls in this test ---
+	ctx := context.TODO()
+	deleted, failed, err := DeleteImages(ctx, "fake-repo", []string{"sha256:deadbeef"}, client, true)
+	if err != nil {
+		t.Errorf("Expected no error in dry run, got: %v", err)
+	}
+	if deleted != 0 || failed != 0 {
+		t.Errorf("Expected 0 deleted/failed in dry run, got: %d/%d", deleted, failed)
+	}
 }

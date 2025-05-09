@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package setlifecyclepolicy
 
@@ -17,7 +17,6 @@ import (
 )
 
 func TestSetLifecyclePolicy(t *testing.T) {
-	// Mock middleware for DescribeRepositories
 	describeRepositoriesMiddleware := middleware.FinalizeMiddlewareFunc(
 		"DescribeRepositoriesMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -35,7 +34,6 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for GetLifecyclePolicy
 	getLifecyclePolicyMiddleware := middleware.FinalizeMiddlewareFunc(
 		"GetLifecyclePolicyMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -51,7 +49,6 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for PutLifecyclePolicy
 	putLifecyclePolicyMiddleware := middleware.FinalizeMiddlewareFunc(
 		"PutLifecyclePolicyMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -86,28 +83,53 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		t.Fatalf("Unable to load SDK config: %v", err)
 	}
 
-	// Override the log output to avoid cluttering the test output
+	// --- override the log output to avoid cluttering the test output ---
 	log.SetOutput(io.Discard)
 
 	client := ecr.NewFromConfig(cfg)
 
-	// Test with allRepos = true
+	// --- test with allRepos = true ---
 	t.Run("Test with allRepos = true", func(t *testing.T) {
 		Main(client, "mock-policy-text", true, nil, "", false)
 	})
 
-	// Test with specific repository list
+	// --- test with specific repository list ---
 	t.Run("Test with specific repository list", func(t *testing.T) {
 		Main(client, "mock-policy-text", false, []string{"test-repo"}, "", false)
 	})
 
-	// Test with repository pattern
+	// --- test with repository pattern ---
 	t.Run("Test with repository pattern", func(t *testing.T) {
 		Main(client, "mock-policy-text", false, nil, "test-.*", false)
 	})
 
-	// Test with dryRun = true
+	// --- test with dryRun = true ---
 	t.Run("Test with dryRun = true", func(t *testing.T) {
 		Main(client, "mock-policy-text", true, nil, "", true)
 	})
+}
+
+func TestSetPolicy_Pure(t *testing.T) {
+	ctx := context.TODO()
+	client := &ecr.Client{} // --- not making real calls in this test ---
+	// --- dry run should always succeed ---
+	result, err := SetPolicy(ctx, client, "repo", "policy", true)
+	if err != nil {
+		t.Errorf("Expected no error in dry run, got: %v", err)
+	}
+	if result != "dry run: no changes made" {
+		t.Errorf("Expected dry run message, got: %s", result)
+	}
+}
+
+func TestSetPolicyForAll_Pure(t *testing.T) {
+	ctx := context.TODO()
+	client := &ecr.Client{} // --- not making real calls in this test ---
+	repos := []string{"repo1", "repo2"}
+	results := SetPolicyForAll(ctx, client, "policy", repos, true)
+	for repo, err := range results {
+		if err != nil {
+			t.Errorf("Expected no error for repo %s in dry run, got: %v", repo, err)
+		}
+	}
 }

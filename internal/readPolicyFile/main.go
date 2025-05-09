@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package readpolicyfile
 
@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-// ReadPolicyFile reads the content of a policy file and returns it as a string.
+// --- reads the content of a policy file and returns it as a string ---
 func ReadPolicyFile(filePath string) (string, error) {
 	log.Println("============================================")
 	log.Printf("[INFO] Opening policy file: %s", filePath)
@@ -20,9 +20,9 @@ func ReadPolicyFile(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to open policy file: %w", err)
 	}
 	defer func() {
-	    if closeErr := file.Close(); closeErr != nil {
-	        log.Printf("[WARN] Failed to close policy file: %v", closeErr)
-	    }
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("[WARN] Failed to close policy file: %v", closeErr)
+		}
 	}()
 
 	log.Printf("[INFO] Reading policy file: %s", filePath)
@@ -41,5 +41,26 @@ func ReadPolicyFile(filePath string) (string, error) {
 
 	log.Printf("[INFO] Successfully read and validated policy file: %s", filePath)
 	log.Println("============================================")
+	return string(bytes), nil
+}
+
+// --- reads and validates policy file, no logging or side effects ---
+func ReadPolicyFilePure(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open policy file: %w", err)
+	}
+	defer file.Close()
+
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to read policy file: %w", err)
+	}
+
+	var jsonObj map[string]interface{}
+	if err := json.Unmarshal(bytes, &jsonObj); err != nil {
+		return "", fmt.Errorf("invalid JSON in policy file: %w", err)
+	}
+
 	return string(bytes), nil
 }
