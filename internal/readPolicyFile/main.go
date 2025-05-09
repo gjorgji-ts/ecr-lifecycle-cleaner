@@ -50,7 +50,11 @@ func ReadPolicyFilePure(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open policy file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			fmt.Printf("Warning: failed to close file: %v\n", cerr)
+		}
+	}()
 
 	bytes, err := io.ReadAll(file)
 	if err != nil {
