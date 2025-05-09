@@ -75,11 +75,55 @@ func TestInitAWSClient(t *testing.T) {
 
 func TestNewECRClient_Pure(t *testing.T) {
 	ctx := context.TODO()
+
+	getCallerIdentityMiddleware := middleware.FinalizeMiddlewareFunc(
+		"GetCallerIdentityMock",
+		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
+			operationName := middleware.GetOperationName(ctx)
+			if operationName == "GetCallerIdentity" {
+				return middleware.FinalizeOutput{
+					Result: &sts.GetCallerIdentityOutput{
+						Account: aws.String("123456789012"),
+					},
+				}, middleware.Metadata{}, nil
+			}
+			return handler.HandleFinalize(ctx, input)
+		},
+	)
+
+	ecrMiddleware := middleware.FinalizeMiddlewareFunc(
+		"ECRMock",
+		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
+			operationName := middleware.GetOperationName(ctx)
+			if operationName == "DescribeRepositories" {
+				return middleware.FinalizeOutput{
+					Result: &ecr.DescribeRepositoriesOutput{},
+				}, middleware.Metadata{}, nil
+			}
+			return handler.HandleFinalize(ctx, input)
+		},
+	)
+
+	cfg, err := config.LoadDefaultConfig(
+		ctx,
+		config.WithRegion("us-west-2"),
+		config.WithAPIOptions([]func(*middleware.Stack) error{
+			func(stack *middleware.Stack) error {
+				if err := stack.Finalize.Add(getCallerIdentityMiddleware, middleware.Before); err != nil {
+					return err
+				}
+				return stack.Finalize.Add(ecrMiddleware, middleware.Before)
+			},
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Unable to load SDK config: %v", err)
+	}
+
 	mockLoader := func(ctx context.Context, optFns ...func(*config.LoadOptions) error) (aws.Config, error) {
-		cfg, _ := config.LoadDefaultConfig(ctx)
-		cfg.Region = "us-west-2"
 		return cfg, nil
 	}
+
 	client, _, region, err := NewECRClient(ctx, mockLoader)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
