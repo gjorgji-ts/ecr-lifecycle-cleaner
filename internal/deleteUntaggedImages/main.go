@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package deleteuntaggedimages
 
@@ -17,8 +17,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 )
 
-// Main is the entry point for deleting untagged images from ECR repositories.
-// It fetches the list of repositories and deletes the untagged images from each.
+// --- ECRAPI defines the subset of ecr.Client methods used for testability ---
+type ECRAPI interface {
+	DescribeRepositories(ctx context.Context, in *ecr.DescribeRepositoriesInput, optFns ...func(*ecr.Options)) (*ecr.DescribeRepositoriesOutput, error)
+	ListImages(ctx context.Context, in *ecr.ListImagesInput, optFns ...func(*ecr.Options)) (*ecr.ListImagesOutput, error)
+	BatchGetImage(ctx context.Context, in *ecr.BatchGetImageInput, optFns ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error)
+	BatchDeleteImage(ctx context.Context, in *ecr.BatchDeleteImageInput, optFns ...func(*ecr.Options)) (*ecr.BatchDeleteImageOutput, error)
+}
+
+// --- the entry point for deleting untagged images from ECR repositories ---
+// --- it fetches the list of repositories and deletes the untagged images from each ---
 func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPattern string, dryRun bool) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
@@ -45,7 +53,7 @@ func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPatter
 		return
 	}
 
-	if err := cleanECR(ctx, client, repositoryList, dryRun); err != nil {
+	if err := CleanECRWithLogging(ctx, client, repositoryList, dryRun); err != nil {
 		log.Fatalf("Error cleaning ECR: %v", err)
 	}
 	log.Println("============================================")
@@ -53,6 +61,7 @@ func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPatter
 	log.Println("============================================")
 }
 
+// --- returns all repository names ---
 func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) {
 	var repositories []string
 	paginator := ecr.NewDescribeRepositoriesPaginator(client, &ecr.DescribeRepositoriesInput{})
@@ -69,6 +78,7 @@ func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) 
 	return repositories, nil
 }
 
+// --- returns repositories matching a pattern ---
 func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPattern string) ([]string, error) {
 	var repositories []string
 	allRepositories, err := getRepositories(ctx, client)
@@ -88,7 +98,8 @@ func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPatt
 	return repositories, nil
 }
 
-func getImages(ctx context.Context, repository string, client *ecr.Client) (map[string][]string, error) {
+// --- returns a map of tagged and orphan image digests ---
+func getImages(ctx context.Context, repository string, client ECRAPI) (map[string][]string, error) {
 	images := map[string][]string{"tagged": {}, "orphan": {}}
 	paginator := ecr.NewListImagesPaginator(client, &ecr.ListImagesInput{RepositoryName: aws.String(repository)})
 
@@ -108,7 +119,8 @@ func getImages(ctx context.Context, repository string, client *ecr.Client) (map[
 	return images, nil
 }
 
-func getChildImages(ctx context.Context, repository string, images []string, client *ecr.Client) ([]string, error) {
+// --- returns child image digests for a set of images ---
+func getChildImages(ctx context.Context, repository string, images []string, client ECRAPI) ([]string, error) {
 	var children []string
 	imageIds := []types.ImageIdentifier{}
 	for _, digest := range images {
@@ -139,6 +151,7 @@ func getChildImages(ctx context.Context, repository string, images []string, cli
 	return children, nil
 }
 
+// --- splits a list into chunks of a given size ---
 func partitionList(lst []string, size int) [][]string {
 	var partitions [][]string
 	for i := 0; i < len(lst); i += size {
@@ -151,7 +164,8 @@ func partitionList(lst []string, size int) [][]string {
 	return partitions
 }
 
-func getImagesToDelete(ctx context.Context, repository string, client *ecr.Client, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
+// --- returns orphan images to delete ---
+func ImagesToDeleteWithLogging(ctx context.Context, repository string, client ECRAPI, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
 	images, err := getImages(ctx, repository, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get images for repository %s: %w", repository, err)
@@ -189,7 +203,8 @@ func getImagesToDelete(ctx context.Context, repository string, client *ecr.Clien
 	return images["orphan"], nil
 }
 
-func deleteImages(ctx context.Context, repository string, images []string, client *ecr.Client, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
+// --- deletes images from a repository ---
+func DeleteImagesWithLogging(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
 	deleted := 0
 	failed := 0
 	for _, part := range partitionList(images, 100) {
@@ -233,7 +248,8 @@ func deleteImages(ctx context.Context, repository string, images []string, clien
 	return nil
 }
 
-func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dryRun bool) error {
+// --- runs the cleanup process for all repositories ---
+func CleanECRWithLogging(ctx context.Context, client ECRAPI, repositories []string, dryRun bool) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error
@@ -248,7 +264,7 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dr
 			logMessages = append(logMessages, logMessage)
 			mu.Unlock()
 
-			images, err := getImagesToDelete(ctx, repo, client, &logMessages, &mu)
+			images, err := ImagesToDeleteWithLogging(ctx, repo, client, &logMessages, &mu)
 			if err != nil {
 				logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to get images to delete: %v", repo, err)
 				mu.Lock()
@@ -262,7 +278,7 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dr
 				logMessages = append(logMessages, logMessage)
 				mu.Unlock()
 
-				err := deleteImages(ctx, repo, images, client, dryRun, &logMessages, &mu)
+				err := DeleteImagesWithLogging(ctx, repo, images, client, dryRun, &logMessages, &mu)
 				if err != nil {
 					logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to delete images: %v", repo, err)
 					mu.Lock()
@@ -292,4 +308,148 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dr
 		return fmt.Errorf("encountered errors during cleanup: %v", errs)
 	}
 	return nil
+}
+
+// --- returns repositories, error only ---
+func ListRepositories(ctx context.Context, client ECRAPI) ([]string, error) {
+	var repositories []string
+	paginator := ecr.NewDescribeRepositoriesPaginator(client, &ecr.DescribeRepositoriesInput{})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to describe repositories: %w", err)
+		}
+		for _, repo := range page.Repositories {
+			repositories = append(repositories, aws.ToString(repo.RepositoryName))
+		}
+	}
+	return repositories, nil
+}
+
+// --- returns repositories matching pattern ---
+func ListRepositoriesByPattern(ctx context.Context, client ECRAPI, repoPattern string) ([]string, error) {
+	allRepositories, err := ListRepositories(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+	var repositories []string
+	for _, repo := range allRepositories {
+		matched, err := regexp.MatchString(repoPattern, repo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to match pattern %s: %w", repoPattern, err)
+		}
+		if matched {
+			repositories = append(repositories, repo)
+		}
+	}
+	return repositories, nil
+}
+
+// --- returns map of tagged/orphan digests ---
+func ListImages(ctx context.Context, repository string, client ECRAPI) (map[string][]string, error) {
+	images := map[string][]string{"tagged": {}, "orphan": {}}
+	paginator := ecr.NewListImagesPaginator(client, &ecr.ListImagesInput{RepositoryName: aws.String(repository)})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list images for repository %s: %w", repository, err)
+		}
+		for _, image := range page.ImageIds {
+			if image.ImageTag != nil {
+				images["tagged"] = append(images["tagged"], aws.ToString(image.ImageDigest))
+			} else {
+				images["orphan"] = append(images["orphan"], aws.ToString(image.ImageDigest))
+			}
+		}
+	}
+	return images, nil
+}
+
+// --- returns child digests ---
+func ListChildImages(ctx context.Context, repository string, images []string, client ECRAPI) ([]string, error) {
+	var children []string
+	imageIds := make([]types.ImageIdentifier, len(images))
+	for i, digest := range images {
+		imageIds[i] = types.ImageIdentifier{ImageDigest: aws.String(digest)}
+	}
+	input := &ecr.BatchGetImageInput{
+		RepositoryName: aws.String(repository),
+		ImageIds:       imageIds,
+	}
+	result, err := client.BatchGetImage(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get images for repository %s: %w", repository, err)
+	}
+	for _, image := range result.Images {
+		var manifest map[string]interface{}
+		err := json.Unmarshal([]byte(aws.ToString(image.ImageManifest)), &manifest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal image manifest for repository %s: %w", repository, err)
+		}
+		if manifests, ok := manifest["manifests"].([]interface{}); ok {
+			for _, m := range manifests {
+				if digest, ok := m.(map[string]interface{})["digest"].(string); ok {
+					children = append(children, digest)
+				}
+			}
+		}
+	}
+	return children, nil
+}
+
+// --- returns orphan digests to delete ---
+func ImagesToDelete(ctx context.Context, repository string, client ECRAPI) ([]string, int, int, error) {
+	images, err := ListImages(ctx, repository, client)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	tagged := images["tagged"]
+	orphans := images["orphan"]
+	for _, part := range partitionList(tagged, 100) {
+		children, err := ListChildImages(ctx, repository, part, client)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		newOrphans := make([]string, 0, len(orphans))
+		for _, orphan := range orphans {
+			found := false
+			for _, child := range children {
+				if orphan == child {
+					found = true
+					break
+				}
+			}
+			if !found {
+				newOrphans = append(newOrphans, orphan)
+			}
+		}
+		orphans = newOrphans
+	}
+	return orphans, len(tagged), len(images["orphan"]), nil
+}
+
+// --- returns (deleted, failed, error) ---
+func DeleteImages(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool) (int, int, error) {
+	deleted := 0
+	failed := 0
+	for _, part := range partitionList(images, 100) {
+		imageIds := make([]types.ImageIdentifier, len(part))
+		for i, digest := range part {
+			imageIds[i] = types.ImageIdentifier{ImageDigest: aws.String(digest)}
+		}
+		if dryRun {
+			continue
+		}
+		input := &ecr.BatchDeleteImageInput{
+			RepositoryName: aws.String(repository),
+			ImageIds:       imageIds,
+		}
+		result, err := client.BatchDeleteImage(ctx, input)
+		if err != nil {
+			return deleted, failed, fmt.Errorf("failed to batch delete images for repository %s: %w", repository, err)
+		}
+		deleted += len(result.ImageIds)
+		failed += len(result.Failures)
+	}
+	return deleted, failed, nil
 }

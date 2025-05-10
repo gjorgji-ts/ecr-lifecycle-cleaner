@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package setlifecyclepolicy
 
@@ -15,8 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 )
 
-// Main is the entry point for setting ECR lifecycle policies.
-// It fetches the list of repositories based on the provided parameters and sets the lifecycle policy for each.
+// --- the entry point for setting ECR lifecycle policies ---
+// --- It fetches the list of repositories based on the provided parameters and sets the lifecycle policy for each ---
 func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList []string, repoPattern string, dryRun bool) {
 	log.SetOutput(os.Stdout)
 	log.Println("============================================")
@@ -25,13 +25,13 @@ func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList [
 	ctx := context.TODO()
 	if allRepos {
 		var err error
-		repositoryList, err = getRepositories(ctx, client)
+		repositoryList, err = GetRepositories(ctx, client)
 		if err != nil {
 			log.Fatalf("[ERROR] Error fetching repositories: %v", err)
 		}
 	} else if len(repoPattern) > 0 {
 		var err error
-		repositoryList, err = getRepositoriesByPatterns(ctx, client, repoPattern)
+		repositoryList, err = GetRepositoriesByPattern(ctx, client, repoPattern)
 		if err != nil {
 			log.Fatalf("[ERROR] Error fetching repositories by patterns: %v", err)
 		}
@@ -49,7 +49,8 @@ func Main(client *ecr.Client, policyText string, allRepos bool, repositoryList [
 	log.Println("============================================")
 }
 
-func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) {
+// --- returns all repository names ---
+func GetRepositories(ctx context.Context, client *ecr.Client) ([]string, error) {
 	var repositories []string
 	paginator := ecr.NewDescribeRepositoriesPaginator(client, &ecr.DescribeRepositoriesInput{})
 
@@ -65,9 +66,10 @@ func getRepositories(ctx context.Context, client *ecr.Client) ([]string, error) 
 	return repositories, nil
 }
 
-func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPattern string) ([]string, error) {
+// --- returns repositories matching a pattern ---
+func GetRepositoriesByPattern(ctx context.Context, client *ecr.Client, repoPattern string) ([]string, error) {
 	var repositories []string
-	allRepositories, err := getRepositories(ctx, client)
+	allRepositories, err := GetRepositories(ctx, client)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +86,7 @@ func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPatt
 	return repositories, nil
 }
 
+// --- sets the lifecycle policy for a repository ---
 func setPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string, dryRun bool) (string, error) {
 	logMsg := fmt.Sprintf("[INFO] Setting lifecycle policy for repository: %s", repository)
 	if dryRun {
@@ -102,6 +105,7 @@ func setPolicy(ctx context.Context, client *ecr.Client, repository string, polic
 	return logMsg, nil
 }
 
+// --- sets the policy for all repositories in the list ---
 func setPolicyForAll(ctx context.Context, client *ecr.Client, policyText string, repoList []string, dryRun bool) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -144,4 +148,39 @@ func setPolicyForAll(ctx context.Context, client *ecr.Client, policyText string,
 		return fmt.Errorf("encountered errors during policy setup: %v", errs)
 	}
 	return nil
+}
+
+// --- sets lifecycle policy, returns status string and error, no logging or side effects ---
+func SetPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string, dryRun bool) (string, error) {
+	if dryRun {
+		return "dry run: no changes made", nil
+	}
+	input := &ecr.PutLifecyclePolicyInput{
+		RepositoryName:      aws.String(repository),
+		LifecyclePolicyText: aws.String(policyText),
+	}
+	resp, err := client.PutLifecyclePolicy(ctx, input)
+	if err != nil {
+		return "", fmt.Errorf("failed to set lifecycle policy for %s: %w", repository, err)
+	}
+	return aws.ToString(resp.LifecyclePolicyText), nil
+}
+
+// --- sets policy for all, returns a map of repo to result/error ---
+func SetPolicyForAll(ctx context.Context, client *ecr.Client, policyText string, repoList []string, dryRun bool) map[string]error {
+	results := make(map[string]error, len(repoList))
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, repository := range repoList {
+		wg.Add(1)
+		go func(repo string) {
+			defer wg.Done()
+			_, err := SetPolicy(ctx, client, repo, policyText, dryRun)
+			mu.Lock()
+			results[repo] = err
+			mu.Unlock()
+		}(repository)
+	}
+	wg.Wait()
+	return results
 }
