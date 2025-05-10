@@ -109,7 +109,7 @@ func TestSetLifecyclePolicy(t *testing.T) {
 	})
 }
 
-func TestSetPolicy_Pure(t *testing.T) {
+func TestSetPolicy(t *testing.T) {
 	ctx := context.TODO()
 	client := &ecr.Client{} // --- not making real calls in this test ---
 	// --- dry run should always succeed ---
@@ -122,7 +122,7 @@ func TestSetPolicy_Pure(t *testing.T) {
 	}
 }
 
-func TestSetPolicyForAll_Pure(t *testing.T) {
+func TestSetPolicyForAll(t *testing.T) {
 	ctx := context.TODO()
 	client := &ecr.Client{} // --- not making real calls in this test ---
 	repos := []string{"repo1", "repo2"}

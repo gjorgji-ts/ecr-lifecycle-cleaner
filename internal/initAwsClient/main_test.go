@@ -73,7 +73,7 @@ func TestInitAWSClient(t *testing.T) {
 	}
 }
 
-func TestNewECRClient_Pure(t *testing.T) {
+func TestNewECRClient(t *testing.T) {
 	ctx := context.TODO()
 
 	getCallerIdentityMiddleware := middleware.FinalizeMiddlewareFunc(

@@ -84,25 +84,22 @@ func TestReadPolicyFile(t *testing.T) {
 	})
 }
 
-func TestReadPolicyFilePure(t *testing.T) {
-	t.Run("Valid policy file", func(t *testing.T) {
-		tmpFile, err := os.CreateTemp("", "policy-*.json")
+func TestReadPolicyFileWithLogging(t *testing.T) {
+	// --- valid policy file test ---
+	t.Run("Valid policy file with logging", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "policy-logging-*.json")
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %v", err)
 		}
 		defer func() {
-			if err := os.Remove(tmpFile.Name()); err != nil {
-				t.Logf("Failed to remove temporary file: %v", err)
-			}
+			_ = os.Remove(tmpFile.Name())
 		}()
+
 		policyContent := `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}`
-		if _, err := tmpFile.Write([]byte(policyContent)); err != nil {
-			t.Fatalf("Failed to write to temporary file: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			t.Fatalf("Failed to close temporary file: %v", err)
-		}
-		result, err := ReadPolicyFilePure(tmpFile.Name())
+		_, _ = tmpFile.Write([]byte(policyContent))
+		_ = tmpFile.Close()
+
+		result, err := ReadPolicyFileWithLogging(tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -111,31 +108,29 @@ func TestReadPolicyFilePure(t *testing.T) {
 		}
 	})
 
-	t.Run("Non-existent file", func(t *testing.T) {
-		_, err := ReadPolicyFilePure("non-existent-file.json")
+	// --- non-existent file test ---
+	t.Run("Non-existent file with logging", func(t *testing.T) {
+		_, err := ReadPolicyFileWithLogging("non-existent-file.json")
 		if err == nil {
 			t.Fatalf("Expected error, got nil")
 		}
 	})
 
-	t.Run("Invalid JSON", func(t *testing.T) {
-		tmpFile, err := os.CreateTemp("", "policy-*.json")
+	// --- invalid JSON test ---
+	t.Run("Invalid JSON with logging", func(t *testing.T) {
+		tmpFile, err := os.CreateTemp("", "policy-logging-*.json")
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %v", err)
 		}
 		defer func() {
-			if err := os.Remove(tmpFile.Name()); err != nil {
-				t.Logf("Failed to remove temporary file: %v", err)
-			}
+			_ = os.Remove(tmpFile.Name())
 		}()
+
 		invalidJSONContent := `{"Version": "2012-10-17", "Statement": [`
-		if _, err := tmpFile.Write([]byte(invalidJSONContent)); err != nil {
-			t.Fatalf("Failed to write to temporary file: %v", err)
-		}
-		if err := tmpFile.Close(); err != nil {
-			t.Fatalf("Failed to close temporary file: %v", err)
-		}
-		_, err = ReadPolicyFilePure(tmpFile.Name())
+		_, _ = tmpFile.Write([]byte(invalidJSONContent))
+		_ = tmpFile.Close()
+
+		_, err = ReadPolicyFileWithLogging(tmpFile.Name())
 		if err == nil {
 			t.Fatalf("Expected error, got nil")
 		}

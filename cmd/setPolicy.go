@@ -32,7 +32,7 @@ Based on the provided policy, it sets lifecycle policies for specified repositor
 		}
 
 		ctx := cmd.Context()
-		policyText, err := readpolicyfile.ReadPolicyFilePure(policyFile)
+		policyText, err := readpolicyfile.ReadPolicyFile(policyFile)
 		if err != nil {
 			fmt.Printf("[ERROR] Reading policy file: %v\n", err)
 			return

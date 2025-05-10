@@ -53,7 +53,7 @@ func Main(client *ecr.Client, allRepos bool, repositoryList []string, repoPatter
 		return
 	}
 
-	if err := cleanECR(ctx, client, repositoryList, dryRun); err != nil {
+	if err := CleanECRWithLogging(ctx, client, repositoryList, dryRun); err != nil {
 		log.Fatalf("Error cleaning ECR: %v", err)
 	}
 	log.Println("============================================")
@@ -99,7 +99,7 @@ func getRepositoriesByPatterns(ctx context.Context, client *ecr.Client, repoPatt
 }
 
 // --- returns a map of tagged and orphan image digests ---
-func getImages(ctx context.Context, repository string, client *ecr.Client) (map[string][]string, error) {
+func getImages(ctx context.Context, repository string, client ECRAPI) (map[string][]string, error) {
 	images := map[string][]string{"tagged": {}, "orphan": {}}
 	paginator := ecr.NewListImagesPaginator(client, &ecr.ListImagesInput{RepositoryName: aws.String(repository)})
 
@@ -120,7 +120,7 @@ func getImages(ctx context.Context, repository string, client *ecr.Client) (map[
 }
 
 // --- returns child image digests for a set of images ---
-func getChildImages(ctx context.Context, repository string, images []string, client *ecr.Client) ([]string, error) {
+func getChildImages(ctx context.Context, repository string, images []string, client ECRAPI) ([]string, error) {
 	var children []string
 	imageIds := []types.ImageIdentifier{}
 	for _, digest := range images {
@@ -165,7 +165,7 @@ func partitionList(lst []string, size int) [][]string {
 }
 
 // --- returns orphan images to delete ---
-func getImagesToDelete(ctx context.Context, repository string, client *ecr.Client, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
+func ImagesToDeleteWithLogging(ctx context.Context, repository string, client ECRAPI, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
 	images, err := getImages(ctx, repository, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get images for repository %s: %w", repository, err)
@@ -204,7 +204,7 @@ func getImagesToDelete(ctx context.Context, repository string, client *ecr.Clien
 }
 
 // --- deletes images from a repository ---
-func deleteImages(ctx context.Context, repository string, images []string, client *ecr.Client, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
+func DeleteImagesWithLogging(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
 	deleted := 0
 	failed := 0
 	for _, part := range partitionList(images, 100) {
@@ -249,7 +249,7 @@ func deleteImages(ctx context.Context, repository string, images []string, clien
 }
 
 // --- runs the cleanup process for all repositories ---
-func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dryRun bool) error {
+func CleanECRWithLogging(ctx context.Context, client ECRAPI, repositories []string, dryRun bool) error {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error
@@ -264,7 +264,7 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dr
 			logMessages = append(logMessages, logMessage)
 			mu.Unlock()
 
-			images, err := getImagesToDelete(ctx, repo, client, &logMessages, &mu)
+			images, err := ImagesToDeleteWithLogging(ctx, repo, client, &logMessages, &mu)
 			if err != nil {
 				logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to get images to delete: %v", repo, err)
 				mu.Lock()
@@ -278,7 +278,7 @@ func cleanECR(ctx context.Context, client *ecr.Client, repositories []string, dr
 				logMessages = append(logMessages, logMessage)
 				mu.Unlock()
 
-				err := deleteImages(ctx, repo, images, client, dryRun, &logMessages, &mu)
+				err := DeleteImagesWithLogging(ctx, repo, images, client, dryRun, &logMessages, &mu)
 				if err != nil {
 					logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to delete images: %v", repo, err)
 					mu.Lock()
