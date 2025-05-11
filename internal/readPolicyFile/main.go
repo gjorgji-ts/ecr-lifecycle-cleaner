@@ -11,7 +11,7 @@ import (
 )
 
 // --- reads the content of a policy file and returns it as a string (with logging) ---
-func ReadPolicyFileWithLogging(filePath string) (string, error) {
+func readPolicyFileWithLogging(filePath string) (string, error) {
 	log.Println("============================================")
 	log.Printf("[INFO] Opening policy file: %s", filePath)
 	file, err := os.Open(filePath)

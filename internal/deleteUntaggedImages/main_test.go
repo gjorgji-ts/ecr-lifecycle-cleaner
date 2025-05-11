@@ -180,7 +180,7 @@ func TestDeleteUntaggedImages(t *testing.T) {
 func TestDeleteImages_DryRun(t *testing.T) {
 	client := &ecr.Client{} // --- not making real calls in this test ---
 	ctx := context.TODO()
-	deleted, failed, err := DeleteImages(ctx, "fake-repo", []string{"sha256:deadbeef"}, client, true)
+	deleted, failed, err := deleteImages(ctx, "fake-repo", []string{"sha256:deadbeef"}, client, true)
 	if err != nil {
 		t.Errorf("Expected no error in dry run, got: %v", err)
 	}
@@ -225,7 +225,7 @@ func TestListImages(t *testing.T) {
 			},
 		},
 	}
-	got, err := ListImages(ctx, "repo", client)
+	got, err := listImages(ctx, "repo", client)
 	want := map[string][]string{"tagged": {"d1"}, "orphan": {"d2"}}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("ListImages = %v, %v; want %v, nil", got, err, want)
@@ -239,7 +239,7 @@ func TestListChildImages(t *testing.T) {
 			Images: []types.Image{{ImageManifest: aws.String(`{"manifests":[{"digest":"d2"}]}`)}},
 		},
 	}
-	got, err := ListChildImages(ctx, "repo", []string{"d1"}, client)
+	got, err := listChildImages(ctx, "repo", []string{"d1"}, client)
 	if err != nil || !reflect.DeepEqual(got, []string{"d2"}) {
 		t.Errorf("ListChildImages = %v, %v; want [d2], nil", got, err)
 	}
@@ -258,7 +258,7 @@ func TestImagesToDelete(t *testing.T) {
 			Images: []types.Image{{ImageManifest: aws.String(`{"manifests":[{"digest":"d2"}]}`)}},
 		},
 	}
-	orphans, tagged, orphanCount, err := ImagesToDelete(ctx, "repo", client)
+	orphans, tagged, orphanCount, err := imagesToDelete(ctx, "repo", client)
 	if err != nil || tagged != 1 || orphanCount != 1 || !reflect.DeepEqual(orphans, []string{}) {
 		t.Errorf("ImagesToDelete = %v, %d, %d, %v; want [], 1, 1, nil", orphans, tagged, orphanCount, err)
 	}
@@ -269,7 +269,7 @@ func TestDeleteImages_Error(t *testing.T) {
 	client := &mockECRClient{
 		batchDeleteErr: errors.New("fail"),
 	}
-	_, _, err := DeleteImages(ctx, "repo", []string{"d1"}, client, false)
+	_, _, err := deleteImages(ctx, "repo", []string{"d1"}, client, false)
 	if err == nil {
 		t.Errorf("DeleteImages error case: want error, got nil")
 	}
@@ -284,7 +284,7 @@ func TestImagesToDeleteWithLogging(t *testing.T) {
 	}
 	var logMessages []string
 	var mu sync.Mutex
-	orphans, err := ImagesToDeleteWithLogging(ctx, "repo", client, &logMessages, &mu)
+	orphans, err := imagesToDeleteWithLogging(ctx, "repo", client, &logMessages, &mu)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestDeleteImagesWithLogging_DryRun(t *testing.T) {
 	client := &ecr.Client{}
 	var logMessages []string
 	var mu sync.Mutex
-	err := DeleteImagesWithLogging(ctx, "repo", []string{"sha256:deadbeef"}, client, true, &logMessages, &mu)
+	err := deleteImagesWithLogging(ctx, "repo", []string{"sha256:deadbeef"}, client, true, &logMessages, &mu)
 	if err != nil {
 		t.Errorf("Expected no error in dry run, got: %v", err)
 	}
@@ -310,5 +310,15 @@ func TestCleanECRWithLogging_EmptyRepos(t *testing.T) {
 	err := CleanECRWithLogging(ctx, client, []string{}, true)
 	if err != nil {
 		t.Errorf("Expected no error for empty repo list, got: %v", err)
+	}
+}
+
+func TestFilterOrphans(t *testing.T) {
+	orphans := []string{"a", "b", "c", "d"}
+	children := []string{"b", "d"}
+	filtered := filterOrphans(orphans, children)
+	want := []string{"a", "c"}
+	if !reflect.DeepEqual(filtered, want) {
+		t.Errorf("filterOrphans = %v; want %v", filtered, want)
 	}
 }

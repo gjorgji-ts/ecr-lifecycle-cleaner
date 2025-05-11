@@ -155,8 +155,23 @@ func partitionList(lst []string, size int) [][]string {
 	return partitions
 }
 
+// --- filter orphans not referenced by children ---
+func filterOrphans(orphans, children []string) []string {
+	result := make([]string, 0, len(orphans))
+	childSet := make(map[string]struct{}, len(children))
+	for _, c := range children {
+		childSet[c] = struct{}{}
+	}
+	for _, orphan := range orphans {
+		if _, found := childSet[orphan]; !found {
+			result = append(result, orphan)
+		}
+	}
+	return result
+}
+
 // --- returns orphan images to delete ---
-func ImagesToDeleteWithLogging(ctx context.Context, repository string, client ECRAPI, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
+func imagesToDeleteWithLogging(ctx context.Context, repository string, client ECRAPI, logMessages *[]string, mu *sync.Mutex) ([]string, error) {
 	images, err := getImages(ctx, repository, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get images for repository %s: %w", repository, err)
@@ -176,26 +191,13 @@ func ImagesToDeleteWithLogging(ctx context.Context, repository string, client EC
 		if err != nil {
 			return nil, fmt.Errorf("failed to get child images for repository %s: %w", repository, err)
 		}
-		orphanImages := []string{}
-		for _, orphan := range images["orphan"] {
-			found := false
-			for _, child := range children {
-				if orphan == child {
-					found = true
-					break
-				}
-			}
-			if !found {
-				orphanImages = append(orphanImages, orphan)
-			}
-		}
-		images["orphan"] = orphanImages
+		images["orphan"] = filterOrphans(images["orphan"], children)
 	}
 	return images["orphan"], nil
 }
 
 // --- deletes images from a repository ---
-func DeleteImagesWithLogging(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
+func deleteImagesWithLogging(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool, logMessages *[]string, mu *sync.Mutex) error {
 	if dryRun {
 		logMessage := fmt.Sprintf("[DRY RUN] Would delete %d images from repository: %s", len(images), repository)
 		mu.Lock()
@@ -261,7 +263,7 @@ func CleanECRWithLogging(ctx context.Context, client ECRAPI, repositories []stri
 			logMessages = append(logMessages, logMessage)
 			mu.Unlock()
 
-			images, err := ImagesToDeleteWithLogging(ctx, repo, client, &logMessages, &mu)
+			images, err := imagesToDeleteWithLogging(ctx, repo, client, &logMessages, &mu)
 			if err != nil {
 				logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to get images to delete: %v", repo, err)
 				mu.Lock()
@@ -275,7 +277,7 @@ func CleanECRWithLogging(ctx context.Context, client ECRAPI, repositories []stri
 				logMessages = append(logMessages, logMessage)
 				mu.Unlock()
 
-				err := DeleteImagesWithLogging(ctx, repo, images, client, dryRun, &logMessages, &mu)
+				err := deleteImagesWithLogging(ctx, repo, images, client, dryRun, &logMessages, &mu)
 				if err != nil {
 					logMessage = fmt.Sprintf("[ERROR] Repository: %s - Failed to delete images: %v", repo, err)
 					mu.Lock()
@@ -343,7 +345,7 @@ func ListRepositoriesByPattern(ctx context.Context, client ECRAPI, repoPattern s
 }
 
 // --- returns map of tagged/orphan digests ---
-func ListImages(ctx context.Context, repository string, client ECRAPI) (map[string][]string, error) {
+func listImages(ctx context.Context, repository string, client ECRAPI) (map[string][]string, error) {
 	images := map[string][]string{"tagged": {}, "orphan": {}}
 	paginator := ecr.NewListImagesPaginator(client, &ecr.ListImagesInput{RepositoryName: aws.String(repository)})
 	for paginator.HasMorePages() {
@@ -363,7 +365,7 @@ func ListImages(ctx context.Context, repository string, client ECRAPI) (map[stri
 }
 
 // --- returns child digests ---
-func ListChildImages(ctx context.Context, repository string, images []string, client ECRAPI) ([]string, error) {
+func listChildImages(ctx context.Context, repository string, images []string, client ECRAPI) ([]string, error) {
 	var children []string
 	imageIds := make([]types.ImageIdentifier, len(images))
 	for i, digest := range images {
@@ -395,38 +397,25 @@ func ListChildImages(ctx context.Context, repository string, images []string, cl
 }
 
 // --- returns orphan digests to delete ---
-func ImagesToDelete(ctx context.Context, repository string, client ECRAPI) ([]string, int, int, error) {
-	images, err := ListImages(ctx, repository, client)
+func imagesToDelete(ctx context.Context, repository string, client ECRAPI) ([]string, int, int, error) {
+	images, err := listImages(ctx, repository, client)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 	tagged := images["tagged"]
 	orphans := images["orphan"]
 	for _, part := range partitionList(tagged, 100) {
-		children, err := ListChildImages(ctx, repository, part, client)
+		children, err := listChildImages(ctx, repository, part, client)
 		if err != nil {
 			return nil, 0, 0, err
 		}
-		newOrphans := make([]string, 0, len(orphans))
-		for _, orphan := range orphans {
-			found := false
-			for _, child := range children {
-				if orphan == child {
-					found = true
-					break
-				}
-			}
-			if !found {
-				newOrphans = append(newOrphans, orphan)
-			}
-		}
-		orphans = newOrphans
+		orphans = filterOrphans(orphans, children)
 	}
 	return orphans, len(tagged), len(images["orphan"]), nil
 }
 
 // --- returns (deleted, failed, error) ---
-func DeleteImages(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool) (int, int, error) {
+func deleteImages(ctx context.Context, repository string, images []string, client ECRAPI, dryRun bool) (int, int, error) {
 	deleted := 0
 	failed := 0
 	for _, part := range partitionList(images, 100) {

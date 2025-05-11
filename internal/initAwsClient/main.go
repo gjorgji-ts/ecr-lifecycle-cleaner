@@ -15,7 +15,7 @@ import (
 type ConfigLoader func(ctx context.Context, optFns ...func(*config.LoadOptions) error) (aws.Config, error)
 
 // --- initializes the AWS client and returns it so it can be used in other functions ---
-func InitAWSClient(loadConfig ConfigLoader) *ecr.Client {
+func initAWSClient(loadConfig ConfigLoader) *ecr.Client {
 	cfg, err := loadConfig(context.TODO())
 	if err != nil {
 		panic(err)

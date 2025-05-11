@@ -145,38 +145,3 @@ func setPolicyForAll(ctx context.Context, client *ecr.Client, policyText string,
 	}
 	return nil
 }
-
-// --- sets lifecycle policy, returns status string and error, no logging or side effects ---
-func SetPolicy(ctx context.Context, client *ecr.Client, repository string, policyText string, dryRun bool) (string, error) {
-	if dryRun {
-		return "dry run: no changes made", nil
-	}
-	input := &ecr.PutLifecyclePolicyInput{
-		RepositoryName:      aws.String(repository),
-		LifecyclePolicyText: aws.String(policyText),
-	}
-	resp, err := client.PutLifecyclePolicy(ctx, input)
-	if err != nil {
-		return "", fmt.Errorf("failed to set lifecycle policy for %s: %w", repository, err)
-	}
-	return aws.ToString(resp.LifecyclePolicyText), nil
-}
-
-// --- sets policy for all, returns a map of repo to result/error ---
-func SetPolicyForAll(ctx context.Context, client *ecr.Client, policyText string, repoList []string, dryRun bool) map[string]error {
-	results := make(map[string]error, len(repoList))
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	for _, repository := range repoList {
-		wg.Add(1)
-		go func(repo string) {
-			defer wg.Done()
-			_, err := SetPolicy(ctx, client, repo, policyText, dryRun)
-			mu.Lock()
-			results[repo] = err
-			mu.Unlock()
-		}(repository)
-	}
-	wg.Wait()
-	return results
-}

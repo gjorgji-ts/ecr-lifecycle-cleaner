@@ -120,28 +120,3 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		}
 	})
 }
-
-func TestSetPolicy(t *testing.T) {
-	ctx := context.TODO()
-	client := &ecr.Client{}
-	// --- dry run should always succeed ---
-	result, err := SetPolicy(ctx, client, "repo", "policy", true)
-	if err != nil {
-		t.Errorf("Expected no error in dry run, got: %v", err)
-	}
-	if result != "dry run: no changes made" {
-		t.Errorf("Expected dry run message, got: %s", result)
-	}
-}
-
-func TestSetPolicyForAll(t *testing.T) {
-	ctx := context.TODO()
-	client := &ecr.Client{}
-	repos := []string{"repo1", "repo2"}
-	results := SetPolicyForAll(ctx, client, "policy", repos, true)
-	for repo, err := range results {
-		if err != nil {
-			t.Errorf("Expected no error for repo %s in dry run, got: %v", repo, err)
-		}
-	}
-}

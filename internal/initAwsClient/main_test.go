@@ -64,7 +64,7 @@ func TestInitAWSClient(t *testing.T) {
 	log.SetOutput(io.Discard)
 
 	// --- use the mocked config to initialize the AWS client ---
-	client := InitAWSClient(func(ctx context.Context, optFns ...func(*config.LoadOptions) error) (aws.Config, error) {
+	client := initAWSClient(func(ctx context.Context, optFns ...func(*config.LoadOptions) error) (aws.Config, error) {
 		return cfg, nil
 	})
 

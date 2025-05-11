@@ -109,7 +109,7 @@ func TestReadPolicyFileWithLogging(t *testing.T) {
 		_, _ = tmpFile.Write([]byte(policyContent))
 		_ = tmpFile.Close()
 
-		result, err := ReadPolicyFileWithLogging(tmpFile.Name())
+		result, err := readPolicyFileWithLogging(tmpFile.Name())
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -120,7 +120,7 @@ func TestReadPolicyFileWithLogging(t *testing.T) {
 
 	// --- non-existent file test ---
 	t.Run("Non-existent file with logging", func(t *testing.T) {
-		_, err := ReadPolicyFileWithLogging("non-existent-file.json")
+		_, err := readPolicyFileWithLogging("non-existent-file.json")
 		if err == nil {
 			t.Fatalf("Expected error, got nil")
 		}
@@ -140,7 +140,7 @@ func TestReadPolicyFileWithLogging(t *testing.T) {
 		_, _ = tmpFile.Write([]byte(invalidJSONContent))
 		_ = tmpFile.Close()
 
-		_, err = ReadPolicyFileWithLogging(tmpFile.Name())
+		_, err = readPolicyFileWithLogging(tmpFile.Name())
 		if err == nil {
 			t.Fatalf("Expected error, got nil")
 		}
