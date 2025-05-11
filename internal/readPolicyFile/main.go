@@ -52,7 +52,7 @@ func ReadPolicyFile(filePath string) (string, error) {
 	}
 	defer func() {
 		if cerr := file.Close(); cerr != nil {
-			fmt.Printf("Warning: failed to close file: %v\n", cerr)
+			fmt.Fprintf(os.Stderr, "[WARN] Failed to close policy file: %v\n", cerr)
 		}
 	}()
 

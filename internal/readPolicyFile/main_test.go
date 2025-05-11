@@ -3,9 +3,19 @@
 package readpolicyfile
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"os"
 	"testing"
 )
+
+// --- errorFile simulates a file that returns an error on Close ---
+type errorFile struct {
+	*os.File
+}
+
+func (f *errorFile) Close() error { return io.ErrClosedPipe }
 
 func TestReadPolicyFile(t *testing.T) {
 	// --- valid policy file test ---
@@ -135,4 +145,44 @@ func TestReadPolicyFileWithLogging(t *testing.T) {
 			t.Fatalf("Expected error, got nil")
 		}
 	})
+}
+
+// --- Test for error handling in file.Close() ---
+func TestReadPolicyFile_CloseError(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "policy-close-*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file: %v", err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	policyContent := `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}]}`
+	_, _ = tmpFile.Write([]byte(policyContent))
+	_ = tmpFile.Close()
+
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	file, _ := os.Open(tmpFile.Name())
+	f := &errorFile{file}
+
+	func() {
+		if cerr := f.Close(); cerr != nil {
+			fmt.Fprintf(os.Stderr, "[WARN] Failed to close policy file: %v\n", cerr)
+		}
+	}()
+
+	w.Close()
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	if err != nil {
+		t.Fatalf("io.Copy failed: %v", err)
+	}
+	output := buf.String()
+
+	if output == "" || !bytes.Contains([]byte(output), []byte("[WARN] Failed to close policy file")) {
+		t.Errorf("Expected warning about failed file close, got: %s", output)
+	}
 }

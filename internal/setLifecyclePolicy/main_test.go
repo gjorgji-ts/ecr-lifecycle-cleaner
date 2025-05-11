@@ -90,28 +90,40 @@ func TestSetLifecyclePolicy(t *testing.T) {
 
 	// --- test with allRepos = true ---
 	t.Run("Test with allRepos = true", func(t *testing.T) {
-		Main(client, "mock-policy-text", true, nil, "", false)
+		err := Main(client, "mock-policy-text", true, nil, "", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 
 	// --- test with specific repository list ---
 	t.Run("Test with specific repository list", func(t *testing.T) {
-		Main(client, "mock-policy-text", false, []string{"test-repo"}, "", false)
+		err := Main(client, "mock-policy-text", false, []string{"test-repo"}, "", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 
 	// --- test with repository pattern ---
 	t.Run("Test with repository pattern", func(t *testing.T) {
-		Main(client, "mock-policy-text", false, nil, "test-.*", false)
+		err := Main(client, "mock-policy-text", false, nil, "test-.*", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 
 	// --- test with dryRun = true ---
 	t.Run("Test with dryRun = true", func(t *testing.T) {
-		Main(client, "mock-policy-text", true, nil, "", true)
+		err := Main(client, "mock-policy-text", true, nil, "", true)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 }
 
 func TestSetPolicy(t *testing.T) {
 	ctx := context.TODO()
-	client := &ecr.Client{} // --- not making real calls in this test ---
+	client := &ecr.Client{}
 	// --- dry run should always succeed ---
 	result, err := SetPolicy(ctx, client, "repo", "policy", true)
 	if err != nil {
@@ -124,7 +136,7 @@ func TestSetPolicy(t *testing.T) {
 
 func TestSetPolicyForAll(t *testing.T) {
 	ctx := context.TODO()
-	client := &ecr.Client{} // --- not making real calls in this test ---
+	client := &ecr.Client{}
 	repos := []string{"repo1", "repo2"}
 	results := SetPolicyForAll(ctx, client, "policy", repos, true)
 	for repo, err := range results {

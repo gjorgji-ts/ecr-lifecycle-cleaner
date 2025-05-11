@@ -56,28 +56,12 @@ and deletes those untagged images to help manage storage and maintain a clean re
 			return
 		}
 
-		for _, repo := range repos {
-			orphans, taggedCount, orphanCount, err := deleteuntaggedimages.ImagesToDelete(ctx, repo, client)
-			if err != nil {
-				cmd.Printf("[ERROR] %s: %v\n", repo, err)
-				continue
-			}
-			cmd.Printf("[INFO] Repository: %s - Found %d tagged and %d untagged images. Deleting %d orphans.\n", repo, taggedCount, orphanCount, len(orphans))
-			if len(orphans) > 0 {
-				deleted, failed, err := deleteuntaggedimages.DeleteImages(ctx, repo, orphans, client, dryRun)
-				if err != nil {
-					cmd.Printf("[ERROR] Failed to delete images in %s: %v\n", repo, err)
-					continue
-				}
-				if dryRun {
-					cmd.Printf("[DRY RUN] Would have deleted %d images in %s\n", len(orphans), repo)
-				} else {
-					cmd.Printf("[INFO] Deleted %d images, failed to delete %d images in %s\n", deleted, failed, repo)
-				}
-			} else {
-				cmd.Printf("[INFO] Repository: %s - Nothing to delete\n", repo)
-			}
+		err = deleteuntaggedimages.Main(client, allRepos, repos, repoPattern, dryRun)
+		if err != nil {
+			cmd.Printf("[ERROR] Failed to clean ECR: %v\n", err)
+			return
 		}
+
 		cmd.Println("[INFO] Finished ECR untagged images cleanup.")
 	},
 }

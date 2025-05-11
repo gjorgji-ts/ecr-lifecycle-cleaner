@@ -144,14 +144,37 @@ func TestDeleteUntaggedImages(t *testing.T) {
 
 	client := ecr.NewFromConfig(cfg)
 
-	// --- test with allRepos = true and dryRun = true ---
-	Main(client, true, nil, "", true)
+	// --- test with allRepos = true ---
+	t.Run("Test with allRepos = true", func(t *testing.T) {
+		err := Main(client, true, nil, "", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+	})
 
-	// --- test with specific repository list and dryRun = true ---
-	Main(client, false, []string{"test-repo"}, "", true)
+	// --- test with specific repository list ---
+	t.Run("Test with specific repository list", func(t *testing.T) {
+		err := Main(client, false, []string{"test-repo"}, "", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+	})
 
-	// --- test with repository pattern and dryRun = true ---
-	Main(client, false, nil, "test-.*", true)
+	// --- test with repository pattern ---
+	t.Run("Test with repository pattern", func(t *testing.T) {
+		err := Main(client, false, nil, "test-.*", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+	})
+
+	// --- test with dryRun = true ---
+	t.Run("Test with dryRun = true", func(t *testing.T) {
+		err := Main(client, true, nil, "", true)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+	})
 }
 
 func TestDeleteImages_DryRun(t *testing.T) {
@@ -261,7 +284,6 @@ func TestImagesToDeleteWithLogging(t *testing.T) {
 	}
 	var logMessages []string
 	var mu sync.Mutex
-	// Should not error, just return empty since no images
 	orphans, err := ImagesToDeleteWithLogging(ctx, "repo", client, &logMessages, &mu)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
@@ -273,7 +295,7 @@ func TestImagesToDeleteWithLogging(t *testing.T) {
 
 func TestDeleteImagesWithLogging_DryRun(t *testing.T) {
 	ctx := context.TODO()
-	client := &ecr.Client{} // not making real calls in this test
+	client := &ecr.Client{}
 	var logMessages []string
 	var mu sync.Mutex
 	err := DeleteImagesWithLogging(ctx, "repo", []string{"sha256:deadbeef"}, client, true, &logMessages, &mu)
@@ -284,7 +306,7 @@ func TestDeleteImagesWithLogging_DryRun(t *testing.T) {
 
 func TestCleanECRWithLogging_EmptyRepos(t *testing.T) {
 	ctx := context.TODO()
-	client := &ecr.Client{} // not making real calls in this test
+	client := &ecr.Client{}
 	err := CleanECRWithLogging(ctx, client, []string{}, true)
 	if err != nil {
 		t.Errorf("Expected no error for empty repo list, got: %v", err)
