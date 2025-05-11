@@ -1,11 +1,10 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package cmd
 
 import (
 	"os"
 
-	// "github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +30,6 @@ It can be used to apply lifecycle policies to ECR repositories,
 and clean up orphaned images from multi-platform builds.`,
 }
 
-// Execute runs the root command.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {

@@ -1,4 +1,4 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package setlifecyclepolicy
 
@@ -17,7 +17,6 @@ import (
 )
 
 func TestSetLifecyclePolicy(t *testing.T) {
-	// Mock middleware for DescribeRepositories
 	describeRepositoriesMiddleware := middleware.FinalizeMiddlewareFunc(
 		"DescribeRepositoriesMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -35,7 +34,6 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for GetLifecyclePolicy
 	getLifecyclePolicyMiddleware := middleware.FinalizeMiddlewareFunc(
 		"GetLifecyclePolicyMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -51,7 +49,6 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		},
 	)
 
-	// Mock middleware for PutLifecyclePolicy
 	putLifecyclePolicyMiddleware := middleware.FinalizeMiddlewareFunc(
 		"PutLifecyclePolicyMock",
 		func(ctx context.Context, input middleware.FinalizeInput, handler middleware.FinalizeHandler) (middleware.FinalizeOutput, middleware.Metadata, error) {
@@ -86,28 +83,40 @@ func TestSetLifecyclePolicy(t *testing.T) {
 		t.Fatalf("Unable to load SDK config: %v", err)
 	}
 
-	// Override the log output to avoid cluttering the test output
+	// --- override the log output to avoid cluttering the test output ---
 	log.SetOutput(io.Discard)
 
 	client := ecr.NewFromConfig(cfg)
 
-	// Test with allRepos = true
+	// --- test with allRepos = true ---
 	t.Run("Test with allRepos = true", func(t *testing.T) {
-		Main(client, "mock-policy-text", true, nil, "", false)
+		err := Main(client, "mock-policy-text", true, nil, "", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 
-	// Test with specific repository list
+	// --- test with specific repository list ---
 	t.Run("Test with specific repository list", func(t *testing.T) {
-		Main(client, "mock-policy-text", false, []string{"test-repo"}, "", false)
+		err := Main(client, "mock-policy-text", false, []string{"test-repo"}, "", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 
-	// Test with repository pattern
+	// --- test with repository pattern ---
 	t.Run("Test with repository pattern", func(t *testing.T) {
-		Main(client, "mock-policy-text", false, nil, "test-.*", false)
+		err := Main(client, "mock-policy-text", false, nil, "test-.*", false)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 
-	// Test with dryRun = true
+	// --- test with dryRun = true ---
 	t.Run("Test with dryRun = true", func(t *testing.T) {
-		Main(client, "mock-policy-text", true, nil, "", true)
+		err := Main(client, "mock-policy-text", true, nil, "", true)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
 	})
 }

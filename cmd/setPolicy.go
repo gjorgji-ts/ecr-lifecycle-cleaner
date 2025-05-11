@@ -1,10 +1,8 @@
-// Copyright © 2025 Gjorgji J.
+// --- Copyright © 2025 Gjorgji J. ---
 
 package cmd
 
 import (
-	"fmt"
-	"log"
 	"strings"
 
 	initawsclient "ecr-lifecycle-cleaner/internal/initAwsClient"
@@ -19,7 +17,6 @@ var (
 	policyFile string
 )
 
-// setPolicyCmd represents the setPolicy command
 var setPolicyCmd = &cobra.Command{
 	Use:   "setPolicy",
 	Short: "Automates the management of lifecycle policies in ECR.",
@@ -27,19 +24,55 @@ var setPolicyCmd = &cobra.Command{
 
 Based on the provided policy, it sets lifecycle policies for specified repositories in the account.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("[INFO] setPolicy called")
+		cmd.Println("[INFO] setPolicy called")
 
 		if repoList != "" {
 			repositoryList = strings.Split(repoList, ",")
 		}
 
+		ctx := cmd.Context()
 		policyText, err := readpolicyfile.ReadPolicyFile(policyFile)
 		if err != nil {
-			log.Fatalf("[ERROR] Reading policy file: %v", err)
+			cmd.Printf("[ERROR] Reading policy file: %v\n", err)
+			return
 		}
 
-		client := initawsclient.InitAWSClient(config.LoadDefaultConfig)
-		setlifecyclepolicy.Main(client, policyText, allRepos, repositoryList, repoPattern, dryRun)
+		client, account, region, err := initawsclient.NewECRClient(ctx, config.LoadDefaultConfig)
+		if err != nil {
+			cmd.Printf("[ERROR] Failed to initialize AWS client: %v\n", err)
+			return
+		}
+		cmd.Printf("[INFO] Using AWS account: %s, region: %s\n", account, region)
+
+		var repos []string
+		if allRepos {
+			repos, err = setlifecyclepolicy.GetRepositories(ctx, client)
+			if err != nil {
+				cmd.Printf("[ERROR] Failed to list repositories: %v\n", err)
+				return
+			}
+		} else if repoPattern != "" {
+			repos, err = setlifecyclepolicy.GetRepositoriesByPattern(ctx, client, repoPattern)
+			if err != nil {
+				cmd.Printf("[ERROR] Failed to list repositories by pattern: %v\n", err)
+				return
+			}
+		} else {
+			repos = repositoryList
+		}
+
+		if len(repos) == 0 {
+			cmd.Println("[INFO] No repositories to set policies for.")
+			return
+		}
+
+		err = setlifecyclepolicy.Main(client, policyText, allRepos, repos, repoPattern, dryRun)
+		if err != nil {
+			cmd.Printf("[ERROR] Failed to set lifecycle policies: %v\n", err)
+			return
+		}
+
+		cmd.Println("[INFO] Finished ECR lifecycle policy setup.")
 	},
 }
 
