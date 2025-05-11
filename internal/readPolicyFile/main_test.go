@@ -172,7 +172,9 @@ func TestReadPolicyFile_CloseError(t *testing.T) {
 		}
 	}()
 
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Fatalf("Failed to close pipe writer: %v", err)
+	}
 	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
