@@ -44,7 +44,7 @@ jobs:
           testArguments: -v ./...
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ecr-lifecycle-cleaner
           path: dist/ecr-lifecycle-cleaner-${{ github.head_ref || github.ref_name }}
