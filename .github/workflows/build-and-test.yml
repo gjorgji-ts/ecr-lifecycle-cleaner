@@ -39,7 +39,7 @@ jobs:
         run: go build -v -o dist/ecr-lifecycle-cleaner-${{ github.head_ref || github.ref_name }}
 
       - name: Test
-        uses: robherley/go-test-action@v0.6.0
+        uses: robherley/go-test-action@v0.7.1
         with:
           testArguments: -v ./...
 
