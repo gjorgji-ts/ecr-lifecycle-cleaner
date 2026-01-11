@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -39,12 +39,12 @@ jobs:
         run: go build -v -o dist/ecr-lifecycle-cleaner-${{ github.head_ref || github.ref_name }}
 
       - name: Test
-        uses: robherley/go-test-action@v0.6.0
+        uses: robherley/go-test-action@v0.7.1
         with:
           testArguments: -v ./...
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ecr-lifecycle-cleaner
           path: dist/ecr-lifecycle-cleaner-${{ github.head_ref || github.ref_name }}
