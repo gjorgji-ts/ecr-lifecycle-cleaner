@@ -1,5 +1,8 @@
 # ECR Lifecycle Cleaner
 
+> [!WARNING]
+> **This project is archived and no longer maintained.** No further updates, bug fixes, or support will be provided. Use at your own risk.
+
 A simple command line tool for managing AWS Elastic Container Registry (ECR) repositories.
 The purpose of this tool is to automate the process of managing ECR lifecycle policies on a larger scale,
 as well as to provide a simple way to clean up old orphaned images from multi-platform builds.
